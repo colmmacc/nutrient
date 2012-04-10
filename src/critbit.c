@@ -9,6 +9,10 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include "critbit.h"
+
+static int (*allocator)(void **, size_t, size_t) = posix_memalign;
+
 typedef struct
 {
     void *child[2];
@@ -16,15 +20,8 @@ typedef struct
     uint8 otherbits;
 } critbit0_node;
 
-typedef struct
+int critbit0_contains(critbit0_tree * t, const char * key, uint32 key_len)
 {
-    void *root;
-} critbit0_tree;
-
-int critbit0_contains(critbit0_tree * t, const char *u)
-{
-    const uint8 *ubytes = (void *) u;
-    const size_t ulen = strlen(u);
     uint8 *p = t->root;
 
     if (!p)
@@ -33,28 +30,36 @@ int critbit0_contains(critbit0_tree * t, const char *u)
     while (1 & (intptr_t) p) {
         critbit0_node *q = (void *) (p - 1);
         uint8 c = 0;
-        if (q->byte < ulen)
-            c = ubytes[q->byte];
+        if (q->byte < key_len)
+            c = key[q ->byte];
         const int direction = (1 + (q->otherbits | c)) >> 8;
 
         p = q->child[direction];
     }
 
-    return 0 == strcmp(u, (const char *) p);
+    return 0 == memcmp(key, ((const char *) p) + sizeof(uint32) + sizeof(void *), key_len);
 }
 
-int critbit0_insert(critbit0_tree * t, const char *u)
+int critbit0_insert(critbit0_tree * t, const char * key, uint32 key_len, void * value)
 {
-    const uint8 *const ubytes = (void *) u;
-    const size_t ulen = strlen(u);
+    const uint8 *const ubytes = (void *) key;
     uint8 *p = t->root;
 
     if (!p) {
         char *x;
-        int a = posix_memalign((void **) &x, sizeof(void *), ulen + 1);
+        int a = allocator((void **) &x, sizeof(void *), sizeof(uint32) + sizeof(value) + key_len);
         if (a)
             return 0;
-        memcpy(x, u, ulen + 1);
+
+        /* Copy the key length */
+        memcpy(x, &key_len, sizeof(uint32));
+
+        /* Copy the value */
+        memcpy(x + sizeof(uint32), &value, sizeof(&value));
+
+        /* Copy the key */
+        memcpy(x + sizeof(uint32) + sizeof(value), key, key_len);
+
         t->root = x;
         return 2;
     }
@@ -62,7 +67,7 @@ int critbit0_insert(critbit0_tree * t, const char *u)
     while (1 & (intptr_t) p) {
         critbit0_node *q = (void *) (p - 1);
         uint8 c = 0;
-        if (q->byte < ulen)
+        if (q->byte < key_len)
             c = ubytes[q->byte];
         const int direction = (1 + (q->otherbits | c)) >> 8;
 
@@ -72,15 +77,15 @@ int critbit0_insert(critbit0_tree * t, const char *u)
     uint32 newbyte;
     uint32 newotherbits;
 
-    for (newbyte = 0; newbyte < ulen; ++newbyte) {
-        if (p[newbyte] != ubytes[newbyte]) {
-            newotherbits = p[newbyte] ^ ubytes[newbyte];
+    for (newbyte = 0; newbyte < key_len; ++newbyte) {
+        if (p[sizeof(uint32) + sizeof(value) + newbyte] != ubytes[newbyte]) {
+            newotherbits = p[sizeof(uint32) + sizeof(value) + newbyte] ^ ubytes[newbyte];
             goto different_byte_found;
         }
     }
 
     if (p[newbyte] != 0) {
-        newotherbits = p[newbyte];
+        newotherbits = p[sizeof(uint32) + sizeof(value) + newbyte];
         goto different_byte_found;
     }
     return 1;
@@ -90,20 +95,23 @@ int critbit0_insert(critbit0_tree * t, const char *u)
     while (newotherbits & (newotherbits - 1))
         newotherbits &= newotherbits - 1;
     newotherbits ^= 255;
-    uint8 c = p[newbyte];
+    uint8 c = p[sizeof(uint32) + sizeof(value) + newbyte];
     int newdirection = (1 + (newotherbits | c)) >> 8;
 
     critbit0_node *newnode;
-    if (posix_memalign
+    if (allocator
         ((void **) &newnode, sizeof(void *), sizeof(critbit0_node)))
         return 0;
 
     char *x;
-    if (posix_memalign((void **) &x, sizeof(void *), ulen + 1)) {
+    if (allocator((void **) &x, sizeof(void *), sizeof(uint32) + sizeof(value) + key_len)) {
         free(newnode);
         return 0;
     }
-    memcpy(x, ubytes, ulen + 1);
+
+    memcpy(x, &key_len, sizeof(uint32));
+    memcpy(x + sizeof(uint32), &value, sizeof(&value));
+    memcpy(x + sizeof(uint32) + sizeof(value), ubytes, key_len);
 
     newnode->byte = newbyte;
     newnode->otherbits = newotherbits;
@@ -120,7 +128,7 @@ int critbit0_insert(critbit0_tree * t, const char *u)
         if (q->byte == newbyte && q->otherbits > newotherbits)
             break;
         uint8 c = 0;
-        if (q->byte < ulen)
+        if (q->byte < key_len)
             c = ubytes[q->byte];
         const int direction = (1 + (q->otherbits | c)) >> 8;
         wherep = q->child + direction;
@@ -132,10 +140,9 @@ int critbit0_insert(critbit0_tree * t, const char *u)
     return 2;
 }
 
-int critbit0_delete(critbit0_tree * t, const char *u)
+int critbit0_delete(critbit0_tree * t, const char * key, uint32 key_len)
 {
-    const uint8 *ubytes = (void *) u;
-    const size_t ulen = strlen(u);
+    const uint8 *ubytes = (void *) key;
     uint8 *p = t->root;
     void **wherep = &t->root;
     void **whereq = 0;
@@ -149,14 +156,14 @@ int critbit0_delete(critbit0_tree * t, const char *u)
         whereq = wherep;
         q = (void *) (p - 1);
         uint8 c = 0;
-        if (q->byte < ulen)
+        if (q->byte < key_len)
             c = ubytes[q->byte];
         direction = (1 + (q->otherbits | c)) >> 8;
         wherep = q->child + direction;
         p = *wherep;
     }
 
-    if (0 != strcmp(u, (const char *) p))
+    if (0 != memcmp(key, ((const char *) p) + sizeof(uint32) + sizeof(void *), key_len))
         return 0;
     free(p);
 
