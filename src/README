@@ -1,0 +1,21 @@
+Nutrient is an indexed key-value store implemented using a crit-bit trie (aka a
+PATRICIA tree). 
+
+Features:
+
+    Stores keys and values in a single mmap()-able file, ala CDB.
+
+    Several keys can point to the same value.
+
+    All keys starting with a particular prefix may be iterated over.
+
+    Nutrient enforces key uniqueness, no duplicates.
+
+Acknowledgements:
+
+    The crit-bit tree implementation is in large part taken from Adam Langley's
+    re-formating of Dan Bernstein's original qhasm code. 
+
+License:
+
+    Nutrient is in the public domain.
