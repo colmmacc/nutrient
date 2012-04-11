@@ -202,8 +202,11 @@ void critbit0_clear(critbit0_tree * t)
 
 static int
 allprefixed_traverse(uint8 * top,
-                     int (*handle) (const char *, void *), void *arg)
+                     int (*handle) (const char *, uint32_t, void *, void *), void *arg)
 {
+    uint32_t key_len;
+    void * value;
+
     if (1 & (intptr_t) top) {
         critbit0_node *q = (void *) (top - 1);
         for (int direction = 0; direction < 2; ++direction)
@@ -218,15 +221,17 @@ allprefixed_traverse(uint8 * top,
         return 1;
     }
 
-    return handle((const char *) top, arg);     /*:27 */
+    memcpy(&key_len, top, sizeof(uint32_t));
+    memcpy(&value, top + sizeof(uint32_t), sizeof(void *));
+
+    return handle((const char *) top + sizeof(uint32_t) + sizeof(void *), key_len, value,  arg);     /*:27 */
 }
 
 int
-critbit0_allprefixed(critbit0_tree * t, const char *prefix,
-                     int (*handle) (const char *, void *), void *arg)
+critbit0_allprefixed(critbit0_tree * t, const char * prefix, uint32 prefix_len,
+                     int (*handle) (const char *, uint32_t, void *, void *), void *arg)
 {
     const uint8 *ubytes = (void *) prefix;
-    const size_t ulen = strlen(prefix);
     uint8 *p = t->root;
     uint8 *top = p;
 
@@ -236,15 +241,15 @@ critbit0_allprefixed(critbit0_tree * t, const char *prefix,
     while (1 & (intptr_t) p) {
         critbit0_node *q = (void *) (p - 1);
         uint8 c = 0;
-        if (q->byte < ulen)
+        if (q->byte < prefix_len)
             c = ubytes[q->byte];
         const int direction = (1 + (q->otherbits | c)) >> 8;
         p = q->child[direction];
-        if (q->byte < ulen)
+        if (q->byte < prefix_len)
             top = p;
     }
 
-    for (size_t i = 0; i < ulen; ++i) {
+    for (size_t i = 0; i < prefix_len; ++i) {
         if (p[i] != ubytes[i])
             return 1;
     }
