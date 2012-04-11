@@ -18,11 +18,12 @@ int allprefixed_cb(const char * key, uint32_t key_len, void * value, void * arg)
 int main(int argc, char ** argv)
 {
     critbit0_tree tree = { 0 };
+    uint64_t value;
 
-    critbit0_insert(&tree, "colm", 5, (void *) 657);
-    critbit0_insert(&tree, "columnar", 9, (void *) 822);
-    critbit0_insert(&tree, "veronica", 9, (void *) 123);
-    critbit0_insert(&tree, "colm", 5, (void *) 456);
+    critbit0_insert(&tree, "colm", 5, 657);
+    critbit0_insert(&tree, "columnar", 9, 822);
+    critbit0_insert(&tree, "veronica", 9, 123);
+    critbit0_insert(&tree, "colm", 5, 456);
 
     critbit0_allprefixed(&tree, "col", 3, allprefixed_cb, NULL);
 
@@ -35,13 +36,14 @@ int main(int argc, char ** argv)
     critbit0_allprefixed(&tree, "", 0, allprefixed_cb, NULL);
     printf("\n");
 
-    printf("veronica: %d\n", (long int) critbit0_find(&tree, "veronica", 9));
-    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4));
+    printf("veronica: %d ", critbit0_find(&tree, "veronica", 9, &value));
+    printf("value: %d\n", (int) value);
+    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4, &value));
 
     critbit0_delete(&tree, "veronica", 9);
 
-    printf("veronica: %d\n", critbit0_find(&tree, "veronica", 9));
-    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4));
+    printf("veronica: %d\n", critbit0_find(&tree, "veronica", 9, &value));
+    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4, &value));
 
     return 0;
 }
