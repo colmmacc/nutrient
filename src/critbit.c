@@ -20,12 +20,13 @@ typedef struct
     uint8 otherbits;
 } critbit0_node;
 
-int critbit0_contains(critbit0_tree * t, const char * key, uint32 key_len)
+static void * _critbit0_find(critbit0_tree * t, const char * key, uint32 key_len)
 {
     uint8 *p = t->root;
+    uint32 found_len;
 
     if (!p)
-        return 0;
+        return NULL;
 
     while (1 & (intptr_t) p) {
         critbit0_node *q = (void *) (p - 1);
@@ -37,7 +38,32 @@ int critbit0_contains(critbit0_tree * t, const char * key, uint32 key_len)
         p = q->child[direction];
     }
 
-    return 0 == memcmp(key, ((const char *) p) + sizeof(uint32) + sizeof(void *), key_len);
+    memcpy(&found_len, p, sizeof(uint32_t));
+
+    if (found_len == key_len && 0 == memcmp(key, ((const char *) p) + sizeof(uint32) + sizeof(void *), key_len))
+    {
+        return p;
+    }
+
+    return NULL;
+}
+
+void * critbit0_find(critbit0_tree * t, const char * key, uint32 key_len)
+{
+    void * r = _critbit0_find(t, key, key_len);;
+
+    if (!r)
+        return NULL;
+
+    memcpy(&r, ((const char *) r) + sizeof(uint32), sizeof(void *));
+
+    return r;
+}
+
+int critbit0_update(critbit0_tree * t, const char * key, uint32_t key_len, void * old_value, void * new_value)
+{
+
+    return 0;
 }
 
 int critbit0_insert(critbit0_tree * t, const char * key, uint32 key_len, void * value)
