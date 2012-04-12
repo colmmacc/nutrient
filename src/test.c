@@ -5,7 +5,7 @@
 
 #include "critbit.h"
 
-int allprefixed_cb(const char * key, uint32_t key_len, void * value, void * arg)
+int allprefixed_cb(const char * key, uint32_t key_len, uint64_t value, void * arg)
 {
     write(STDOUT_FILENO, "key=", 4);
     write(STDOUT_FILENO, key, key_len);
