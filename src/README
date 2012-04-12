@@ -5,9 +5,11 @@ Features:
 
     Stores keys and values in a single mmap()-able file, ala CDB.
 
-    Several keys can point to the same value.
+    Clustered values - values are stored adjacent to the indexed keys
 
     All keys starting with a particular prefix may be iterated over.
+
+    Support for nearest match
 
     Nutrient enforces key uniqueness, no duplicates.
 
@@ -19,3 +21,8 @@ Acknowledgements:
 License:
 
     Nutrient is in the public domain.
+
+Blame:
+
+    Colm MacCárthaigh
+    colm@allcosts.net
