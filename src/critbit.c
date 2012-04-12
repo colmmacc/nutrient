@@ -18,7 +18,8 @@ typedef struct
     uint8 otherbits;
 } critbit0_node;
 
-static void * _critbit0_find(critbit0_tree * t, const char * key, uint32 key_len)
+static void *_critbit0_find(critbit0_tree * t, const char *key,
+                            uint32 key_len)
 {
     uint8 *p = t->root;
     uint32 found_len;
@@ -30,7 +31,7 @@ static void * _critbit0_find(critbit0_tree * t, const char * key, uint32 key_len
         critbit0_node *q = (void *) (p - 1);
         uint8 c = 0;
         if (q->byte < key_len)
-            c = key[q ->byte];
+            c = key[q->byte];
         const int direction = (1 + (q->otherbits | c)) >> 8;
 
         p = q->child[direction];
@@ -38,41 +39,44 @@ static void * _critbit0_find(critbit0_tree * t, const char * key, uint32 key_len
 
     memcpy(&found_len, p, sizeof(uint32_t));
 
-    if (found_len == key_len && 0 == memcmp(key, ((const char *) p) + sizeof(uint32) + sizeof(void *), key_len))
-    {
+    if (found_len == key_len
+        && 0 == memcmp(key,
+                       ((const char *) p) + sizeof(uint32) + sizeof(void *),
+                       key_len)) {
         return p;
     }
 
     return NULL;
 }
 
-static int critbit0_allocator(void ** memory, size_t size)
+static int critbit0_allocator(void **memory, size_t size)
 {
     return posix_memalign(memory, sizeof(void *), size);
 }
 
-static int (*allocator)(void **, size_t) = critbit0_allocator;
+static int (*allocator) (void **, size_t) = critbit0_allocator;
 
-void critbit0_set_allocator(int (*func)(void **, size_t))
+void critbit0_set_allocator(int (*func) (void **, size_t))
 {
     allocator = func;
 }
 
-static void critbit0_deallocator(void * memory, size_t size)
+static void critbit0_deallocator(void *memory, size_t size)
 {
     free(memory);
 }
 
-static void (*deallocator)(void *, size_t size) = critbit0_deallocator;
+static void (*deallocator) (void *, size_t size) = critbit0_deallocator;
 
-void critbit0_set_deallocator(void (*func)(void *, size_t))
+void critbit0_set_deallocator(void (*func) (void *, size_t))
 {
     deallocator = func;
 }
 
-int critbit0_find(critbit0_tree * t, const char * key, uint32_t key_len, uint64_t * value)
+int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
+                  uint64_t * value)
 {
-    void * r = _critbit0_find(t, key, key_len);;
+    void *r = _critbit0_find(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -82,20 +86,24 @@ int critbit0_find(critbit0_tree * t, const char * key, uint32_t key_len, uint64_
     return 0;
 }
 
-int critbit0_update(critbit0_tree * t, const char * key, uint32_t key_len, uint64_t  old_value, uint64_t new_value)
+int critbit0_update(critbit0_tree * t, const char *key, uint32_t key_len,
+                    uint64_t old_value, uint64_t new_value)
 {
 
     return 0;
 }
 
-int critbit0_insert(critbit0_tree * t, const char * key, uint32 key_len, uint64_t value)
+int critbit0_insert(critbit0_tree * t, const char *key, uint32 key_len,
+                    uint64_t value)
 {
     const uint8 *const ubytes = (void *) key;
     uint8 *p = t->root;
 
     if (!p) {
         char *x;
-        int a = allocator((void **) &x, sizeof(key_len) + sizeof(value) + key_len);
+        int a =
+            allocator((void **) &x,
+                      sizeof(key_len) + sizeof(value) + key_len);
         if (a)
             return 0;
 
@@ -127,7 +135,8 @@ int critbit0_insert(critbit0_tree * t, const char * key, uint32 key_len, uint64_
 
     for (newbyte = 0; newbyte < key_len; ++newbyte) {
         if (p[sizeof(uint32) + sizeof(value) + newbyte] != ubytes[newbyte]) {
-            newotherbits = p[sizeof(uint32) + sizeof(value) + newbyte] ^ ubytes[newbyte];
+            newotherbits =
+                p[sizeof(uint32) + sizeof(value) + newbyte] ^ ubytes[newbyte];
             goto different_byte_found;
         }
     }
@@ -147,8 +156,7 @@ int critbit0_insert(critbit0_tree * t, const char * key, uint32 key_len, uint64_
     int newdirection = (1 + (newotherbits | c)) >> 8;
 
     critbit0_node *newnode;
-    if (allocator
-        ((void **) &newnode, sizeof(critbit0_node)))
+    if (allocator((void **) &newnode, sizeof(critbit0_node)))
         return 0;
 
     char *x;
@@ -188,7 +196,7 @@ int critbit0_insert(critbit0_tree * t, const char * key, uint32 key_len, uint64_
     return 2;
 }
 
-int critbit0_delete(critbit0_tree * t, const char * key, uint32 key_len)
+int critbit0_delete(critbit0_tree * t, const char *key, uint32 key_len)
 {
     const uint8 *ubytes = (void *) key;
     uint8 *p = t->root;
@@ -214,7 +222,10 @@ int critbit0_delete(critbit0_tree * t, const char * key, uint32 key_len)
 
     memcpy(&found_len, p, sizeof(uint32_t));
 
-    if (found_len != key_len || 0 != memcmp(key, ((const char *) p) + sizeof(uint32_t) + sizeof(uint64_t), key_len))
+    if (found_len != key_len
+        || 0 != memcmp(key,
+                       ((const char *) p) + sizeof(uint32_t) +
+                       sizeof(uint64_t), key_len))
         return 0;
     deallocator(p, sizeof(uint32_t) + sizeof(uint64_t) + key_len);
 
@@ -253,7 +264,8 @@ void critbit0_clear(critbit0_tree * t)
 
 static int
 allprefixed_traverse(uint8 * top,
-                     int (*handle) (const char *, uint32_t, uint64_t, void *), void *arg)
+                     int (*handle) (const char *, uint32_t, uint64_t, void *),
+                     void *arg)
 {
     uint32_t key_len;
     uint64_t value;
@@ -275,12 +287,14 @@ allprefixed_traverse(uint8 * top,
     memcpy(&key_len, top, sizeof(uint32_t));
     memcpy(&value, top + sizeof(uint32_t), sizeof(uint64_t));
 
-    return handle((const char *) top + sizeof(uint32_t) + sizeof(uint64_t), key_len, value, arg); 
+    return handle((const char *) top + sizeof(uint32_t) + sizeof(uint64_t),
+                  key_len, value, arg);
 }
 
 int
-critbit0_allprefixed(critbit0_tree * t, const char * prefix, uint32 prefix_len,
-                     int (*handle) (const char *, uint32_t, uint64_t, void *), void *arg)
+critbit0_allprefixed(critbit0_tree * t, const char *prefix, uint32 prefix_len,
+                     int (*handle) (const char *, uint32_t, uint64_t, void *),
+                     void *arg)
 {
     const uint8 *ubytes = (void *) prefix;
     uint8 *p = t->root;
