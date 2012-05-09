@@ -22,7 +22,8 @@ static void *_critbit0_find(critbit0_tree * t, const char *key,
                             uint32 key_len)
 {
     uint8 *p = t->root;
-    uint32 found_len;
+    uint32 found_key_len;
+    uint32 found_value_len;
 
     if (!p)
         return NULL;
@@ -37,11 +38,12 @@ static void *_critbit0_find(critbit0_tree * t, const char *key,
         p = q->child[direction];
     }
 
-    memcpy(&found_len, p, sizeof(uint32_t));
+    memcpy(&found_key_len, p, sizeof(uint32_t));
+    memcpy(&found_value_len, p + sizeof(uint32_t), sizeof(uint32_t));
 
-    if (found_len == key_len
+    if (found_key_len == key_len
         && 0 == memcmp(key,
-                       ((const char *) p) + sizeof(uint32) + sizeof(void *),
+                       ((const char *) p) + sizeof(uint32_t) + sizeof(uint32_t),
                        key_len)) {
         return p;
     }
@@ -74,27 +76,24 @@ void critbit0_set_deallocator(void (*func) (void *, size_t))
 }
 
 int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
-                  uint64_t * value)
+                  const char **value, uint32_t * value_len)
 {
     void *r = _critbit0_find(t, key, key_len);;
 
     if (!r)
         return -1;
 
-    memcpy(value, ((const char *) r) + sizeof(uint32), sizeof(uint64_t));
+    /* Copy the value length */
+    memcpy(value_len, (const char *) r + sizeof(uint32_t), sizeof(uint32_t));
 
-    return 0;
-}
-
-int critbit0_update(critbit0_tree * t, const char *key, uint32_t key_len,
-                    uint64_t old_value, uint64_t new_value)
-{
+    /* Point the value to the right data */
+    *value = r + sizeof(uint32_t) + sizeof(uint32_t) + key_len;
 
     return 0;
 }
 
 int critbit0_insert(critbit0_tree * t, const char *key, uint32 key_len,
-                    uint64_t value)
+                    const char *value, uint32_t value_len)
 {
     const uint8 *const ubytes = (void *) key;
     uint8 *p = t->root;
@@ -103,18 +102,19 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32 key_len,
         char *x;
         int a =
             allocator((void **) &x,
-                      sizeof(key_len) + sizeof(value) + key_len);
+                      sizeof(key_len) + key_len + sizeof(value_len) + value_len);
         if (a)
             return 0;
 
-        /* Copy the key length */
+        /* Copy the key and value length */
         memcpy(x, &key_len, sizeof(uint32));
-
-        /* Copy the value */
-        memcpy(x + sizeof(uint32), &value, sizeof(value));
+        memcpy(x + sizeof(uint32), &value_len, sizeof(uint32));
 
         /* Copy the key */
-        memcpy(x + sizeof(uint32) + sizeof(value), key, key_len);
+        memcpy(x + sizeof(uint32) + sizeof(uint32), key, key_len);
+
+        /* Copy the value */
+        memcpy(x + sizeof(uint32) + sizeof(uint32) + key_len, value, value_len);
 
         t->root = x;
         return 2;
@@ -134,15 +134,15 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32 key_len,
     uint32 newotherbits;
 
     for (newbyte = 0; newbyte < key_len; ++newbyte) {
-        if (p[sizeof(uint32) + sizeof(value) + newbyte] != ubytes[newbyte]) {
+        if (p[sizeof(uint32) + sizeof(uint32) + newbyte] != ubytes[newbyte]) {
             newotherbits =
-                p[sizeof(uint32) + sizeof(value) + newbyte] ^ ubytes[newbyte];
+                p[sizeof(uint32) + sizeof(uint32) + newbyte] ^ ubytes[newbyte];
             goto different_byte_found;
         }
     }
 
     if (p[newbyte] != 0) {
-        newotherbits = p[sizeof(uint32) + sizeof(value) + newbyte];
+        newotherbits = p[sizeof(uint32) + sizeof(uint32) + newbyte];
         goto different_byte_found;
     }
     return 1;
@@ -152,7 +152,7 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32 key_len,
     while (newotherbits & (newotherbits - 1))
         newotherbits &= newotherbits - 1;
     newotherbits ^= 255;
-    uint8 c = p[sizeof(uint32) + sizeof(value) + newbyte];
+    uint8 c = p[sizeof(uint32) + sizeof(uint32) + newbyte];
     int newdirection = (1 + (newotherbits | c)) >> 8;
 
     critbit0_node *newnode;
@@ -160,14 +160,15 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32 key_len,
         return 0;
 
     char *x;
-    if (allocator((void **) &x, sizeof(uint32) + sizeof(value) + key_len)) {
+    if (allocator((void **) &x, sizeof(uint32) + sizeof(uint32) + key_len)) {
         deallocator(newnode, sizeof(critbit0_node));
         return 0;
     }
 
     memcpy(x, &key_len, sizeof(uint32));
-    memcpy(x + sizeof(uint32), &value, sizeof(value));
-    memcpy(x + sizeof(uint32) + sizeof(value), ubytes, key_len);
+    memcpy(x + sizeof(uint32), &value_len, sizeof(uint32));
+    memcpy(x + sizeof(uint32) + sizeof(uint32), key, key_len);
+    memcpy(x + sizeof(uint32) + sizeof(uint32) + key_len, value, value_len);
 
     newnode->byte = newbyte;
     newnode->otherbits = newotherbits;
@@ -204,7 +205,8 @@ int critbit0_delete(critbit0_tree * t, const char *key, uint32 key_len)
     void **whereq = 0;
     critbit0_node *q = 0;
     int direction = 0;
-    uint32_t found_len;
+    uint32_t found_key_len;
+    uint32_t found_value_len;
 
     if (!p)
         return 0;
@@ -220,14 +222,15 @@ int critbit0_delete(critbit0_tree * t, const char *key, uint32 key_len)
         p = *wherep;
     }
 
-    memcpy(&found_len, p, sizeof(uint32_t));
+    memcpy(&found_key_len, p, sizeof(uint32_t));
+    memcpy(&found_value_len, p + sizeof(uint32_t), sizeof(uint32_t));
 
-    if (found_len != key_len
+    if (found_key_len != key_len
         || 0 != memcmp(key,
                        ((const char *) p) + sizeof(uint32_t) +
-                       sizeof(uint64_t), key_len))
+                       sizeof(uint32_t), key_len))
         return 0;
-    deallocator(p, sizeof(uint32_t) + sizeof(uint64_t) + key_len);
+    deallocator(p, sizeof(uint32_t) + sizeof(uint32_t) + key_len + found_value_len);
 
     if (!whereq) {
         t->root = 0;
@@ -264,10 +267,11 @@ void critbit0_clear(critbit0_tree * t)
 
 static int
 allprefixed_traverse(uint8 * top,
-                     int (*handle) (const char *, uint32_t, uint64_t, void *),
+                     int (*handle) (const char *, uint32_t, const char *, uint32_t, void *),
                      void *arg)
 {
     uint32_t key_len;
+    uint32_t value_len;
     uint64_t value;
 
     if (1 & (intptr_t) top) {
@@ -285,15 +289,15 @@ allprefixed_traverse(uint8 * top,
     }
 
     memcpy(&key_len, top, sizeof(uint32_t));
-    memcpy(&value, top + sizeof(uint32_t), sizeof(uint64_t));
+    memcpy(&value_len, top + sizeof(uint32_t), sizeof(uint32_t));
 
-    return handle((const char *) top + sizeof(uint32_t) + sizeof(uint64_t),
-                  key_len, value, arg);
+    return handle((const char *) top + sizeof(uint32_t) + sizeof(uint32_t),
+                  key_len, (const char *) top + sizeof(uint32_t) + sizeof(uint32_t) + key_len, value_len, arg);
 }
 
 int
 critbit0_allprefixed(critbit0_tree * t, const char *prefix, uint32 prefix_len,
-                     int (*handle) (const char *, uint32_t, uint64_t, void *),
+                     int (*handle) (const char *, uint32_t, const char *, uint32_t, void *),
                      void *arg)
 {
     const uint8 *ubytes = (void *) prefix;

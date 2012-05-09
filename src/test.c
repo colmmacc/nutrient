@@ -7,26 +7,24 @@
 #include "critbit.h"
 #include "ffa.h"
 
-int allprefixed_cb(const char *key, uint32_t key_len, uint64_t value,
+int allprefixed_cb(const char *key, uint32_t key_len, const char *value, uint32_t value_len,
                    void *arg)
 {
-    write(STDOUT_FILENO, "key=", 4);
-    write(STDOUT_FILENO, key, key_len);
-    write(STDOUT_FILENO, " value=", 7);
-    printf("%ld\n", (long int) value);
-
+    printf("key_len=%u value_len=%u key=%s value=%s\n", key_len, value_len, key, value);
     return 1;
 }
 
 int test_critbit0()
 {
     critbit0_tree tree = { 0 };
-    uint64_t value;
+    const char * value;
+    uint32_t value_len;
 
-    critbit0_insert(&tree, "colm", 5, 657);
-    critbit0_insert(&tree, "columnar", 9, 822);
-    critbit0_insert(&tree, "veronica", 9, 123);
-    critbit0_insert(&tree, "colm", 5, 456);
+    critbit0_insert(&tree, "colm", 5, "657", 4);
+    critbit0_insert(&tree, "columnar", 9, "822", 4);
+    critbit0_insert(&tree, "veronica", 9, "123", 4);
+    critbit0_insert(&tree, "veronica", 9, "456", 4);
+    critbit0_insert(&tree, "colm", 5, "456", 4);
 
     critbit0_allprefixed(&tree, "col", 3, allprefixed_cb, NULL);
 
@@ -39,14 +37,18 @@ int test_critbit0()
     critbit0_allprefixed(&tree, "", 0, allprefixed_cb, NULL);
     printf("\n");
 
-    printf("veronica: %d ", critbit0_find(&tree, "veronica", 9, &value));
-    printf("value: %d\n", (int) value);
-    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4, &value));
+    printf("veronica: %d ", critbit0_find(&tree, "veronica", 9, &value, &value_len));
+    printf("value_len: %u value: %s\n", value_len, value);
+    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4, &value, &value_len));
 
     critbit0_delete(&tree, "veronica", 9);
 
-    printf("veronica: %d\n", critbit0_find(&tree, "veronica", 9, &value));
-    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4, &value));
+    printf("veronica: %d\n", critbit0_find(&tree, "veronica", 9, &value, &value_len));
+    printf("bat:  %d\n", critbit0_find(&tree, "bat", 4, &value, &value_len));
+
+    printf("\n");
+    critbit0_allprefixed(&tree, "", 0, allprefixed_cb, NULL);
+    printf("\n");
 
     return 0;
 }
@@ -59,16 +61,16 @@ int test_ffa()
     ffa = ffa_create("stupid");
 
     offset = ffa_alloc(ffa, 10);
-    printf("offset: %d\n", offset);
+    printf("offset: %llu\n", offset);
 
     strcpy(((char *) ffa->base) + offset, "colm");
 
     offset = ffa_alloc(ffa, 20);
-    printf("offset: %d\n", offset);
+    printf("offset: %llu\n", offset);
     strcpy(((char *) ffa->base) + offset, "veronica");
 
     offset = ffa_alloc(ffa, 30);
-    printf("offset: %d\n", offset);
+    printf("offset: %llu\n", offset);
     strcpy(((char *) ffa->base) + offset, "foobar");
 
     ffa_sync(ffa);
