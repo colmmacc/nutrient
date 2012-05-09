@@ -55,26 +55,28 @@ int test_critbit0()
 
 int test_ffa()
 {
-    ffa_t *ffa;
-    uint64_t offset;
+    struct ffa  *handle;
+    char * offset;
 
-    ffa = ffa_create("stupid");
+    handle = ffa_create("stupid");
 
-    offset = ffa_alloc(ffa, 10);
-    printf("offset: %llu\n", offset);
+    offset = ffa_alloc(handle, 10);
+    printf("offset: %p\n", offset);
 
-    strcpy(((char *) ffa->base) + offset, "colm");
+    strcpy(offset, "colm");
 
-    offset = ffa_alloc(ffa, 20);
-    printf("offset: %llu\n", offset);
-    strcpy(((char *) ffa->base) + offset, "veronica");
+    offset = ffa_alloc(handle, 20);
+    printf("offset: %p\n", offset);
+    strcpy(offset, "veronica");
 
-    offset = ffa_alloc(ffa, 30);
-    printf("offset: %llu\n", offset);
-    strcpy(((char *) ffa->base) + offset, "foobar");
+    offset = ffa_alloc(handle, 30);
+    printf("offset: %p\n", offset);
+    strcpy(offset, "foobar");
 
-    ffa_sync(ffa);
-    ffa_close(ffa);
+    ffa_sync(handle);
+    ffa_close(handle);
+
+    unlink("stupid");
 
     return 0;
 }

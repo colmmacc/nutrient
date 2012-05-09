@@ -1,5 +1,4 @@
-#ifndef CRITBIT_H_
-#define CRITBIT_H_
+#pragma once
 
 #include <stdint.h>
 
@@ -21,5 +20,3 @@ int critbit0_allprefixed(critbit0_tree * t, const char *key, uint32_t key_len,
                                         void *), void *arg);
 void critbit0_set_allocator(int (*func) (void **, size_t));
 void critbit0_set_deallocator(void (*func) (void *, size_t));
-
-#endif /* CRITBIT_H_ */

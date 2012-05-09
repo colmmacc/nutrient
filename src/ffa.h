@@ -1,20 +1,41 @@
-#ifndef _FFA_H_
-#define _FFA_H_
+#pragma once
 
 #include <stdlib.h>
 #include <stdint.h>
 
-typedef struct
-{
-    int fd;
-    void *base;
-    uint64_t size;
-} ffa_t;
+/*
+** Open a flat-file allocator 
+**
+** @param filename  The file for storing data
+** @return a pointer to a useable struct ffa structure on success,
+**         or NULL on failure. errno will be set appropriately.
+*/
+struct ffa *ffa_create(const char *filename);
+struct ffa *ffa_open(const char *filename);
 
-ffa_t *ffa_create(const char *filename);
-ffa_t *ffa_open(const char *filename);
-uint64_t ffa_alloc(ffa_t * ffa, size_t size);
-void ffa_sync(ffa_t * ffa);
-void ffa_close(ffa_t * ffa);
+/*
+** Allocate memory from the flat-file allocator
+**
+** @param handle The struct ffa for the opened file
+** @param size   Allocate size bytes of memory
+**
+** @return a pointer to the allocated memory,
+**         or NULL on error. errno will be
+**         set appropriately. 
+*/
+void * ffa_alloc(struct ffa * handle, size_t size);
 
-#endif /* _FFA_H_ */
+/*
+** De-allocate memory from the flat-file 
+** allocator
+** 
+** @param handle The struct ffa for the opened file
+** @param ptr    Pointer to the memory to be
+**               de-allocated
+** @param size   size bytes of memory will be
+**               recorded as free
+*/
+int ffa_free(struct ffa * handle, void * ptr, size_t size);
+
+int ffa_sync(struct ffa * handle);
+int ffa_close(struct ffa * handle);

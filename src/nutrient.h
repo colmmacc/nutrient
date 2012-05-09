@@ -1,5 +1,4 @@
-#ifndef _NUTRIENT_H_
-#define _NUTRIENT_H_
+#pragma once
 
 #include <stdint.h>
 
@@ -32,5 +31,3 @@ int nutrient_find_prefixed(struct nutrient_readable_db *db,
 
 /* Close a nutrient DB file */
 int nutrient_close_db(struct nutrient_readable_db *db);
-
-#endif /* _NUTRIENT_H_ */
