@@ -87,7 +87,7 @@ int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
     memcpy(value_len, (const char *) r + sizeof(uint32_t), sizeof(uint32_t));
 
     /* Point the value to the right data */
-    *value = r + sizeof(uint32_t) + sizeof(uint32_t) + key_len;
+    *value = (const char *) r + sizeof(uint32_t) + sizeof(uint32_t) + key_len;
 
     return 0;
 }
@@ -273,7 +273,6 @@ allprefixed_traverse(uint8 * top,
 {
     uint32_t key_len;
     uint32_t value_len;
-    uint64_t value;
 
     if (1 & (intptr_t) top) {
         critbit0_node *q = (void *) (top - 1);
