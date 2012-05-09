@@ -230,6 +230,7 @@ int critbit0_delete(critbit0_tree * t, const char *key, uint32 key_len)
                        ((const char *) p) + sizeof(uint32_t) +
                        sizeof(uint32_t), key_len))
         return 0;
+
     deallocator(p, sizeof(uint32_t) + sizeof(uint32_t) + key_len + found_value_len);
 
     if (!whereq) {
@@ -238,7 +239,7 @@ int critbit0_delete(critbit0_tree * t, const char *key, uint32 key_len)
     }
 
     *whereq = q->child[1 - direction];
-    free(q);
+    deallocator(q, sizeof(critbit0_node));
 
     return 1;
 }
@@ -251,10 +252,10 @@ static void traverse(void *top)
         critbit0_node *q = (void *) (p - 1);
         traverse(q->child[0]);
         traverse(q->child[1]);
-        free(q);
+        deallocator(q, sizeof(critbit0_node));
     }
     else {
-        free(p);
+        deallocator(p, sizeof(critbit0_node));
     }
 }
 
