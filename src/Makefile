@@ -6,7 +6,7 @@ ffa.o: ffa.c ffa.h
 
 critbit.o: critbit.c critbit.h
 
-test: test.c critbit.o ffa.o nutrient.h
+test: test.c critbit.o ffa.o 
 
 runtest: test
 	./test 

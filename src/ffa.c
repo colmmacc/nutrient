@@ -20,6 +20,16 @@ struct ffa
     void *base;
 };
 
+void * ffa_get_base(struct ffa * handle)
+{
+    return handle->base;
+}
+
+void * ffa_get_memory(struct ffa * handle, uint64_t offset)
+{
+    return (void *) (((intptr_t) handle->base) + offset);
+}
+
 struct ffa * ffa_create(const char *filename)
 {
     struct ffa *ret;
@@ -69,12 +79,12 @@ struct ffa *ffa_open(const char *filename)
     return 0;
 }
 
-void * ffa_alloc(struct ffa * handle, size_t size)
+uint64_t ffa_alloc(struct ffa * handle, size_t size)
 {
     if (size <= 0)
     {
         errno = EINVAL;
-        return NULL;
+        return FFA_ERROR;
     }
 
     /* Only allocate aligned segments */
@@ -90,17 +100,17 @@ void * ffa_alloc(struct ffa * handle, size_t size)
     */
     if (lseek(handle->fd, size - 1, SEEK_END) < 0)
     {
-        return NULL;
+        return FFA_ERROR;
     }
     if (write(handle->fd, "\0", 1) != 1)
     {
-        return NULL;
+        return FFA_ERROR;
     } 
 
     /* Unmap the old data */
     if (handle->size > 0 && munmap(handle->base, handle->size) < 0)
     {
-        return NULL;
+        return FFA_ERROR;
     }
 
     /* Reflect the new size of the file */
@@ -112,10 +122,11 @@ void * ffa_alloc(struct ffa * handle, size_t size)
              handle->fd, 0);
     if (handle->base == MAP_FAILED)
     {
-        return NULL;
+        return FFA_ERROR;
     }
 
-    return ((char *)handle->base) + (handle->size - size);
+    /* Return the offset */
+    return handle->size - size;
 }
 
 int ffa_sync(struct ffa * handle)
