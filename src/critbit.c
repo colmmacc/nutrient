@@ -18,20 +18,51 @@ typedef struct
     uint8_t otherbits;
 } critbit0_node;
 
-static void read_critbit0_node(const char * memory, critbit0_node * node)
+static void debug_node(const char * verb, critbit0_node * node, uint64_t offset)
 {
+//    printf("%s (%llu) child0: %llu child1: %llu byte: %lu bits: %d\n", verb, offset, node->child[0], node->child[1], node->byte, node->otherbits);
+}
+
+static void read_critbit0_node(critbit0_tree * tree, uint64_t offset,
+                               critbit0_node * node)
+{
+    const char *memory = ffa_get_memory(tree->ffa, offset);
+
     uint64_unpack(memory, &node->child[0]);
     uint64_unpack(memory + 8, &node->child[1]);
     uint32_unpack(memory + 16, &node->byte);
     node->otherbits = (uint8_t) memory[20];
+
+    debug_node("read", node, offset);
 }
 
-static void add_critbit0_node(critbit0_node * node, char * memory)
+static void update_critbit0_node(critbit0_tree * tree, uint64_t offset,
+                                 critbit0_node * node)
 {
+    char *memory = ffa_get_memory(tree->ffa, offset);
+
+    /* Pack everything in */
     uint64_pack(node->child[0], memory);
     uint64_pack(node->child[1], memory + 8);
     uint32_pack(node->byte, memory + 16);
     memory[20] = (char) node->otherbits;
+
+    debug_node("update", node, offset);
+}
+
+static uint64_t add_critbit0_node(critbit0_tree * tree, critbit0_node * node)
+{
+    /* Allocate 21 bytes for the node storage */
+    uint64_t offset = ffa_alloc(tree->ffa,
+                                sizeof(uint64_t) + sizeof(uint64_t) +
+                                sizeof(uint32_t) + 1);
+    if (offset == FFA_ERROR) {
+        return FFA_ERROR;
+    }
+
+    update_critbit0_node(tree, offset, node);
+
+    return offset;
 }
 
 static void update_root_offset(critbit0_tree * tree)
@@ -39,11 +70,11 @@ static void update_root_offset(critbit0_tree * tree)
     uint64_pack(tree->root_offset, ffa_get_memory(tree->ffa, 8));
 }
 
-critbit0_tree * critbit0_create(const char * filename)
+critbit0_tree *critbit0_create(const char *filename)
 {
-    struct ffa * f;
+    struct ffa *f;
     uint64_t r;
-    critbit0_tree * tree;
+    critbit0_tree *tree;
 
     f = ffa_create(filename);
     if (f == NULL) {
@@ -59,8 +90,7 @@ critbit0_tree * critbit0_create(const char * filename)
     tree->ffa = f;
 
     r = ffa_alloc(f, 8 + sizeof(uint64_t));
-    if (r == FFA_ERROR)
-    {   
+    if (r == FFA_ERROR) {
         return NULL;
     }
 
@@ -76,33 +106,46 @@ critbit0_tree * critbit0_create(const char * filename)
     return tree;
 }
 
+int critbit0_sync(critbit0_tree * t)
+{
+    return ffa_sync(t->ffa);
+}
+
+int critbit0_close(critbit0_tree * t)
+{
+    return ffa_close(t->ffa);
+}
+
 static void *_critbit0_find(critbit0_tree * t, const char *key,
                             uint32_t key_len)
 {
     uint64_t p = t->root_offset;
     uint32_t found_key_len;
     uint32_t found_value_len;
+    critbit0_node q;
 
     if (!p)
         return NULL;
 
     while (1 & p) {
-        critbit0_node *q = ffa_get_memory(t->ffa, p - 1);
+        read_critbit0_node(t, p - 1, &q);
         uint8_t c = 0;
-        if (q->byte < key_len)
-            c = key[q->byte];
-        const int direction = (1 + (q->otherbits | c)) >> 8;
+        if (q.byte < key_len)
+            c = key[q.byte];
+        const int direction = (1 + (q.otherbits | c)) >> 8;
 
-        p = q->child[direction];
+        p = q.child[direction];
     }
 
     memcpy(&found_key_len, ffa_get_memory(t->ffa, p), sizeof(uint32_t));
-    memcpy(&found_value_len, ffa_get_memory(t->ffa, p + sizeof(uint32_t)), sizeof(uint32_t));
+    memcpy(&found_value_len, ffa_get_memory(t->ffa, p + sizeof(uint32_t)),
+           sizeof(uint32_t));
 
     if (found_key_len == key_len
         && 0 == memcmp(key,
-                       ffa_get_memory(t->ffa, p + sizeof(uint32_t) + sizeof(uint32_t)),
-                       key_len)) {
+                       ffa_get_memory(t->ffa,
+                                      p + sizeof(uint32_t) +
+                                      sizeof(uint32_t)), key_len)) {
         return ffa_get_memory(t->ffa, p);
     }
 
@@ -131,24 +174,32 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
 {
     const uint8_t *const ubytes = (void *) key;
     uint64_t p = t->root_offset;
+    critbit0_node q;
 
     /* If there's no root node, then this key is automatically
-    ** the new root node.
-    */
+     ** the new root node.
+     */
     if (!p) {
-        uint64_t x = ffa_alloc(t->ffa, sizeof(key_len) + key_len + sizeof(value_len) + value_len);
+        uint64_t x = ffa_alloc(t->ffa,
+                               sizeof(key_len) + key_len + sizeof(value_len) +
+                               value_len);
         if (x == FFA_ERROR)
             return 0;
 
         /* Copy the key and value length */
         memcpy(ffa_get_memory(t->ffa, x), &key_len, sizeof(uint32_t));
-        memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t)), &value_len, sizeof(uint32_t));
+        memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t)), &value_len,
+               sizeof(uint32_t));
 
         /* Copy the key */
-        memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t)), key, key_len);
+        memcpy(ffa_get_memory
+               (t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t)), key,
+               key_len);
 
         /* Copy the value */
-        memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t) + key_len), value, value_len);
+        memcpy(ffa_get_memory
+               (t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t) + key_len),
+               value, value_len);
 
         /* Create a root node */
         t->root_offset = x;
@@ -161,35 +212,47 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
 
     /* Keep decending into children, as long as the LSB is "1" */
     while (1 & p) {
-        critbit0_node *q = ffa_get_memory(t->ffa, p - 1);
+        read_critbit0_node(t, p - 1, &q);
         uint8_t c = 0;
-        if (q->byte < key_len)
-            c = ubytes[q->byte];
+        if (q.byte < key_len)
+            c = ubytes[q.byte];
 
         /* Pick the direction */
-        const int direction = (1 + (q->otherbits | c)) >> 8;
-        p = q->child[direction];
+        const int direction = (1 + (q.otherbits | c)) >> 8;
+        p = q.child[direction];
     }
 
     /* At this point, p is the offset of the closest match node to our key,
-    ** possibly an exact match - if not, then a viable parent node 
-    */
+     ** possibly an exact match - if not, then a viable parent node 
+     */
 
     uint32_t newbyte;
     uint32_t newotherbits;
 
     /* Compare the key to the node, until we find a difference */
     for (newbyte = 0; newbyte < key_len; ++newbyte) {
-        if (((char *) ffa_get_memory(t->ffa, p + sizeof(uint32_t) + sizeof(uint32_t)))[newbyte] != ubytes[newbyte]) {
-            newotherbits =
-                ((char *) ffa_get_memory(t->ffa, p + sizeof(uint32_t) + sizeof(uint32_t)))[newbyte] ^ ubytes[newbyte];
+        if (((char *)
+             ffa_get_memory(t->ffa,
+                            p + sizeof(uint32_t) +
+                            sizeof(uint32_t)))[newbyte] != ubytes[newbyte]) {
+            newotherbits = ((char *)
+                            ffa_get_memory(t->ffa,
+                                           p + sizeof(uint32_t) +
+                                           sizeof(uint32_t)))[newbyte] ^
+                ubytes[newbyte];
             goto different_byte_found;
         }
     }
 
     /* The key is identical to p, right up to just before "newotherbits" */
-    if (((char *) ffa_get_memory(t->ffa, p + sizeof(uint32_t) + sizeof(uint32_t)))[newbyte] != 0) {
-        newotherbits = ((char *) ffa_get_memory(t->ffa, p + sizeof(uint32_t) + sizeof(uint32_t)))[newbyte];
+    if (((char *)
+         ffa_get_memory(t->ffa,
+                        p + sizeof(uint32_t) + sizeof(uint32_t)))[newbyte] !=
+        0) {
+        newotherbits = ((char *)
+                        ffa_get_memory(t->ffa,
+                                       p + sizeof(uint32_t) +
+                                       sizeof(uint32_t)))[newbyte];
         goto different_byte_found;
     }
 
@@ -204,55 +267,78 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
     newotherbits ^= 255;
 
     /* What direction from the parent should we insert the key ? */
-    uint8_t c = ((char *) ffa_get_memory(t->ffa, p + sizeof(uint32_t) + sizeof(uint32_t)))[newbyte];
+    uint8_t c = ((char *)
+                 ffa_get_memory(t->ffa,
+                                p + sizeof(uint32_t) +
+                                sizeof(uint32_t)))[newbyte];
     int newdirection = (1 + (newotherbits | c)) >> 8;
 
-    /* Create the new node for key */
-    uint64_t n = ffa_alloc(t->ffa, sizeof(critbit0_node));
-    if (n == FFA_ERROR) {
-        return 0;
-    }
-
-    critbit0_node *newnode = ffa_get_memory(t->ffa, n);
+    critbit0_node newnode;
 
     /* Allocate space for its data */
-    uint64_t x = ffa_alloc(t->ffa, sizeof(uint32_t) + sizeof(uint32_t) + key_len + value_len);
+    uint64_t x = ffa_alloc(t->ffa,
+                           sizeof(uint32_t) + sizeof(uint32_t) + key_len +
+                           value_len);
     if (x == FFA_ERROR) {
         return 0;
     }
 
     memcpy(ffa_get_memory(t->ffa, x), &key_len, sizeof(uint32_t));
-    memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t)), &value_len, sizeof(uint32_t));
-    memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t)), key, key_len);
-    memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t) + key_len), value, value_len);
+    memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t)), &value_len,
+           sizeof(uint32_t));
+    memcpy(ffa_get_memory(t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t)),
+           key, key_len);
+    memcpy(ffa_get_memory
+           (t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t) + key_len), value,
+           value_len);
 
-    newnode->byte = newbyte;
-    newnode->otherbits = newotherbits;
-    newnode->child[1 - newdirection] = x;
+    newnode.byte = newbyte;
+    newnode.otherbits = newotherbits;
+    newnode.child[1 - newdirection] = x;
 
-    uint64_t *wherep = &t->root_offset;
+    /* 
+     ** We start off with the root node as the insertion point,
+     ** and the root node is always 8 bytes from the base. We
+     ** use 9, because pointers to nodes always have the LSB set
+     ** to 1.
+     */
+    uint64_t offset_of_insertion_point = t->root_offset;
+    uint64_t offset_of_pointer_to_insertion_point = 8;
+
     for (;;) {
-        uint64_t p = *wherep;
-        if (!(1 & (intptr_t) p))
+        if (!(1 & offset_of_insertion_point))
             break;
-        critbit0_node *q = ffa_get_memory(t->ffa, p - 1);
-        if (q->byte > newbyte)
+
+        read_critbit0_node(t, p - 1, &q);
+
+        if (q.byte > newbyte)
             break;
-        if (q->byte == newbyte && q->otherbits > newotherbits)
+        if (q.byte == newbyte && q.otherbits > newotherbits)
             break;
         uint8_t c = 0;
-        if (q->byte < key_len)
-            c = ubytes[q->byte];
-        const int direction = (1 + (q->otherbits | c)) >> 8;
-        wherep = &q->child[direction];
+        if (q.byte < key_len)
+            c = ubytes[q.byte];
+        const int direction = (1 + (q.otherbits | c)) >> 8;
+
+        offset_of_insertion_point = q.child[direction];
+        offset_of_pointer_to_insertion_point = p - 1 + (direction * 8);
     }
 
-    newnode->child[newdirection] = *wherep;
-    *wherep = 1 + (intptr_t) n;
+    /* The new node will be the parent of the insertion point */
+    newnode.child[newdirection] = offset_of_insertion_point;
 
-    if (wherep == &t->root_offset) {
-        /* Update the saved copy of the root offset */
-        update_root_offset(t);
+    /* Add the new node */
+    uint64_t newnode_offset = add_critbit0_node(t, &newnode);
+
+    /* Update the memory that originally pointed at the insertion point, to point at the
+     ** new node. This may even be the root node.
+     */
+    uint64_pack(1 + newnode_offset,
+                ffa_get_memory(t->ffa, offset_of_pointer_to_insertion_point));
+
+    /* Update the in-memory root offset too */
+    if (offset_of_pointer_to_insertion_point == 8) {
+        t->root_offset = 1 + newnode_offset;
     }
 
     return 2;
@@ -284,12 +370,13 @@ int critbit0_delete(critbit0_tree * t, const char *key, uint32_t key_len)
     }
 
     memcpy(&found_key_len, ffa_get_memory(t->ffa, p), sizeof(uint32_t));
-    memcpy(&found_value_len, ffa_get_memory(t->ffa, p + sizeof(uint32_t)), sizeof(uint32_t));
+    memcpy(&found_value_len, ffa_get_memory(t->ffa, p + sizeof(uint32_t)),
+           sizeof(uint32_t));
 
     if (found_key_len != key_len
         || 0 != memcmp(key,
                        ffa_get_memory(t->ffa, p + sizeof(uint32_t) +
-                       sizeof(uint32_t)), key_len))
+                                      sizeof(uint32_t)), key_len))
         return 0;
 
     //deallocator(p, sizeof(uint32_t) + sizeof(uint32_t) + key_len + found_value_len);
@@ -320,16 +407,17 @@ void critbit0_clear(critbit0_tree * t)
 
 static int
 allprefixed_traverse(critbit0_tree * t, uint64_t top,
-                     int (*handle) (const char *, uint32_t, const char *, uint32_t, void *),
-                     void *arg)
+                     int (*handle) (const char *, uint32_t, const char *,
+                                    uint32_t, void *), void *arg)
 {
     uint32_t key_len;
     uint32_t value_len;
+    critbit0_node q;
 
     if (1 & top) {
-        critbit0_node *q = ffa_get_memory(t->ffa, top - 1);
+        read_critbit0_node(t, top - 1, &q);
         for (int direction = 0; direction < 2; ++direction)
-            switch (allprefixed_traverse(t, q->child[direction], handle, arg)) {
+            switch (allprefixed_traverse(t, q.child[direction], handle, arg)) {
             case 1:
                 break;
             case 0:
@@ -341,37 +429,49 @@ allprefixed_traverse(critbit0_tree * t, uint64_t top,
     }
 
     memcpy(&key_len, ffa_get_memory(t->ffa, top), sizeof(uint32_t));
-    memcpy(&value_len, ffa_get_memory(t->ffa, top + sizeof(uint32_t)), sizeof(uint32_t));
+    memcpy(&value_len, ffa_get_memory(t->ffa, top + sizeof(uint32_t)),
+           sizeof(uint32_t));
 
-    return handle((const char *) ffa_get_memory(t->ffa, top + sizeof(uint32_t) + sizeof(uint32_t)),
-                  key_len, (const char *) ffa_get_memory(t->ffa, top + sizeof(uint32_t) + sizeof(uint32_t) + key_len), value_len, arg);
+    return handle((const char *)
+                  ffa_get_memory(t->ffa,
+                                 top + sizeof(uint32_t) + sizeof(uint32_t)),
+                  key_len, (const char *) ffa_get_memory(t->ffa,
+                                                         top +
+                                                         sizeof(uint32_t) +
+                                                         sizeof(uint32_t) +
+                                                         key_len), value_len,
+                  arg);
 }
 
 int
-critbit0_allprefixed(critbit0_tree * t, const char *prefix, uint32_t prefix_len,
-                     int (*handle) (const char *, uint32_t, const char *, uint32_t, void *),
+critbit0_allprefixed(critbit0_tree * t, const char *prefix,
+                     uint32_t prefix_len, int (*handle) (const char *,
+                                                         uint32_t,
+                                                         const char *,
+                                                         uint32_t, void *),
                      void *arg)
 {
     const uint8_t *ubytes = (void *) prefix;
     uint64_t p = t->root_offset;
     uint64_t top = p;
+    critbit0_node q;
 
     if (!p)
         return 1;
 
     while (1 & p) {
-        critbit0_node *q = ffa_get_memory(t->ffa, p - 1);
+        read_critbit0_node(t, p - 1, &q);
         uint8_t c = 0;
-        if (q->byte < prefix_len)
-            c = ubytes[q->byte];
-        const int direction = (1 + (q->otherbits | c)) >> 8;
-        p = q->child[direction];
-        if (q->byte < prefix_len)
+        if (q.byte < prefix_len)
+            c = ubytes[q.byte];
+        const int direction = (1 + (q.otherbits | c)) >> 8;
+        p = q.child[direction];
+        if (q.byte < prefix_len)
             top = p;
     }
 
     for (size_t i = 0; i < prefix_len; ++i) {
-        if (((char *)ffa_get_memory(t->ffa, p))[i] != ubytes[i])
+        if (((char *) ffa_get_memory(t->ffa, p))[i] != ubytes[i])
             return 1;
     }
 

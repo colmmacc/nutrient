@@ -1,3 +1,4 @@
+#include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -15,20 +16,20 @@ struct ffa
     uint64_t size;
 
     /* The base pointer - this is the first memory location
-    ** where actual data is stored. 
-    */
+     ** where actual data is stored. 
+     */
     void *base;
 };
 
-void * ffa_get_base(struct ffa * handle)
+void *ffa_get_base(struct ffa *handle)
 {
     return handle->base;
 }
 
-int ffa_truncate(struct ffa * handle, uint64_t size)
+int ffa_truncate(struct ffa *handle, uint64_t size)
 {
     int r = ftruncate(handle->fd, size);
-    if (r <  0) {
+    if (r < 0) {
         return r;
     }
 
@@ -36,12 +37,12 @@ int ffa_truncate(struct ffa * handle, uint64_t size)
     return 0;
 }
 
-void * ffa_get_memory(struct ffa * handle, uint64_t offset)
+void *ffa_get_memory(struct ffa *handle, uint64_t offset)
 {
     return (void *) (((intptr_t) handle->base) + offset);
 }
 
-struct ffa * ffa_create(const char *filename)
+struct ffa *ffa_create(const char *filename)
 {
     struct ffa *ret;
 
@@ -92,8 +93,7 @@ struct ffa *ffa_open(const char *filename)
 
 uint64_t ffa_alloc(struct ffa * handle, size_t size)
 {
-    if (size <= 0)
-    {
+    if (size <= 0) {
         errno = EINVAL;
         return FFA_ERROR;
     }
@@ -104,23 +104,20 @@ uint64_t ffa_alloc(struct ffa * handle, size_t size)
     }
 
     /* 
-    ** Seek to the end of the file, plus the number of bytes
-    ** we'd like to write, minus one. This extends the size 
-    ** of the file by that amount as soon as a write occurs,
-    ** so we write the one byte to make sure 
-    */
-    if (lseek(handle->fd, size - 1, SEEK_END) < 0)
-    {
+     ** Seek to the end of the file, plus the number of bytes
+     ** we'd like to write, minus one. This extends the size 
+     ** of the file by that amount as soon as a write occurs,
+     ** so we write the one byte to make sure 
+     */
+    if (lseek(handle->fd, size - 1, SEEK_END) < 0) {
         return FFA_ERROR;
     }
-    if (write(handle->fd, "\0", 1) != 1)
-    {
+    if (write(handle->fd, "\0", 1) != 1) {
         return FFA_ERROR;
-    } 
+    }
 
     /* Unmap the old data */
-    if (handle->size > 0 && munmap(handle->base, handle->size) < 0)
-    {
+    if (handle->size > 0 && munmap(handle->base, handle->size) < 0) {
         return FFA_ERROR;
     }
 
@@ -131,8 +128,7 @@ uint64_t ffa_alloc(struct ffa * handle, size_t size)
     handle->base =
         mmap(handle->base, handle->size, PROT_READ | PROT_WRITE, MAP_SHARED,
              handle->fd, 0);
-    if (handle->base == MAP_FAILED)
-    {
+    if (handle->base == MAP_FAILED) {
         return FFA_ERROR;
     }
 
@@ -140,28 +136,26 @@ uint64_t ffa_alloc(struct ffa * handle, size_t size)
     return handle->size - size;
 }
 
-int ffa_sync(struct ffa * handle)
+int ffa_sync(struct ffa *handle)
 {
     return msync(handle->base, handle->size, MS_SYNC);
 }
 
-int ffa_close(struct ffa * handle)
+int ffa_close(struct ffa *handle)
 {
     int r;
 
     r = munmap(handle->base, handle->size);
-    if (r != 0)
-    {
+    if (r != 0) {
         return r;
     }
 
     r = close(handle->fd);
-    if (r != 0)
-    {
+    if (r != 0) {
         return r;
     }
 
     free(handle);
-    
+
     return 0;
 }

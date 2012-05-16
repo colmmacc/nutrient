@@ -25,7 +25,7 @@ struct ffa *ffa_open(const char *filename);
 **         or FFA_ERROR on error. errno will be
 **         set appropriately. 
 */
-uint64_t ffa_alloc(struct ffa * handle, size_t size);
+uint64_t ffa_alloc(struct ffa *handle, size_t size);
 
 /*
 ** De-allocate memory from the flat-file 
@@ -37,11 +37,11 @@ uint64_t ffa_alloc(struct ffa * handle, size_t size);
 ** @param size   size bytes of memory will be
 **               recorded as free
 */
-int ffa_free(struct ffa * handle, void * ptr, size_t size);
+int ffa_free(struct ffa *handle, void *ptr, size_t size);
 
-int ffa_sync(struct ffa * handle);
-int ffa_close(struct ffa * handle);
+int ffa_sync(struct ffa *handle);
+int ffa_close(struct ffa *handle);
 
-void * ffa_get_base(struct ffa * handle);
-void * ffa_get_memory(struct ffa * handle, uint64_t offset);
-int ffa_truncate(struct ffa * handle, uint64_t size);
+void *ffa_get_base(struct ffa *handle);
+void *ffa_get_memory(struct ffa *handle, uint64_t offset);
+int ffa_truncate(struct ffa *handle, uint64_t size);

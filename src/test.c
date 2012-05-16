@@ -7,17 +7,18 @@
 #include "critbit.h"
 #include "ffa.h"
 
-int allprefixed_cb(const char *key, uint32_t key_len, const char *value, uint32_t value_len,
-                   void *arg)
+int allprefixed_cb(const char *key, uint32_t key_len, const char *value,
+                   uint32_t value_len, void *arg)
 {
-    printf("key_len=%u value_len=%u key=%s value=%s\n", key_len, value_len, key, value);
+    printf("key_len=%u value_len=%u key=%s value=%s\n", key_len, value_len,
+           key, value);
     return 1;
 }
 
 int test_critbit0()
 {
-    critbit0_tree * tree;
-    const char * value;
+    critbit0_tree *tree;
+    const char *value;
     uint32_t value_len;
 
 
@@ -40,26 +41,31 @@ int test_critbit0()
     //critbit0_allprefixed(tree, "", 0, allprefixed_cb, NULL);
     printf("\n");
 
-    printf("veronica: %d ", critbit0_find(tree, "veronica", 9, &value, &value_len));
+    printf("veronica: %d ",
+           critbit0_find(tree, "veronica", 9, &value, &value_len));
     printf("value_len: %u value: %s\n", value_len, value);
     printf("bat:  %d\n", critbit0_find(tree, "bat", 4, &value, &value_len));
 
     //critbit0_delete(&tree, "veronica", 9);
 
-    printf("veronica: %d\n", critbit0_find(tree, "veronica", 9, &value, &value_len));
+    printf("veronica: %d\n",
+           critbit0_find(tree, "veronica", 9, &value, &value_len));
     printf("bat:  %d\n", critbit0_find(tree, "bat", 4, &value, &value_len));
 
     printf("\n");
     //critbit0_allprefixed(tree, "", 0, allprefixed_cb, NULL);
     printf("\n");
 
+    critbit0_sync(tree);
+    critbit0_close(tree);
+
     return 0;
 }
 
 int test_ffa()
 {
-    struct ffa  *handle;
-    char * offset;
+    struct ffa *handle;
+    char *offset;
 
     handle = ffa_create("stupid");
 
