@@ -8,6 +8,7 @@
 #include <errno.h>
 
 #include "critbit.h"
+#include "util.h"
 #include "ffa.h"
 
 typedef struct
@@ -16,6 +17,27 @@ typedef struct
     uint32_t byte;
     uint8_t otherbits;
 } critbit0_node;
+
+static void read_critbit0_node(const char * memory, critbit0_node * node)
+{
+    uint64_unpack(memory, &node->child[0]);
+    uint64_unpack(memory + 8, &node->child[1]);
+    uint32_unpack(memory + 16, &node->byte);
+    node->otherbits = (uint8_t) memory[20];
+}
+
+static void add_critbit0_node(critbit0_node * node, char * memory)
+{
+    uint64_pack(node->child[0], memory);
+    uint64_pack(node->child[1], memory + 8);
+    uint32_pack(node->byte, memory + 16);
+    memory[20] = (char) node->otherbits;
+}
+
+static void update_root_offset(critbit0_tree * tree)
+{
+    uint64_pack(tree->root_offset, ffa_get_memory(tree->ffa, 8));
+}
 
 critbit0_tree * critbit0_create(const char * filename)
 {
@@ -45,8 +67,8 @@ critbit0_tree * critbit0_create(const char * filename)
     /* Copy our magic number in */
     memcpy(ffa_get_memory(f, r), "CrItBiT0", 8);
 
-    /* Copy the offset of the root node */
-    memcpy(ffa_get_memory(f, r + 8), &tree->root_offset, sizeof(uint64_t)); 
+    /* Update the root offset */
+    update_root_offset(tree);
 
     /* Sync the file */
     ffa_sync(f);
@@ -85,66 +107,6 @@ static void *_critbit0_find(critbit0_tree * t, const char *key,
     }
 
     return NULL;
-}
-
-int critbit0_allocator(void **memory, size_t size, void * ctx)
-{
-    static void * base = NULL;
-    static size_t total_size = 0;
-
-    /* Only allocate aligned segments */
-    if (size % (sizeof(void *))) {
-        size += sizeof(void *) - (size % (sizeof(void *)));
-    }
-
-    /* Increase the total size */
-    total_size += size;
-
-    if (base == NULL) 
-    {
-        base = malloc(1024 * 1024 * 10);
-    }
-
-#if 0
-    /* Allocate some memory */
-    base = realloc(base, total_size);
-    if (base == NULL)
-    {
-        return -1;
-    }
-#endif
-
-    /* Set our pointer */
-    *memory = ((char *) base) + (total_size - size);
-
-    printf("p: %p\n", *memory);
-
-    //return posix_memalign(memory, sizeof(void *), size);
-
-    return 0;
-}
-
-static int (*allocator) (void **, size_t, void *) = critbit0_allocator;
-static void * allocator_ctx;
-
-void critbit0_set_allocator(int (*func) (void **, size_t, void *), void * ctx)
-{
-    allocator = func;
-    allocator_ctx = ctx;
-}
-
-static void critbit0_deallocator(void *memory, size_t size, void * ctx)
-{
-    //free(memory);
-}
-
-static void (*deallocator) (void *, size_t size, void *) = critbit0_deallocator;
-static void * deallocator_ctx;
-
-void critbit0_set_deallocator(void (*func) (void *, size_t, void *), void * ctx)
-{
-    deallocator = func;
-    deallocator_ctx = ctx;
 }
 
 int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
@@ -192,7 +154,7 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
         t->root_offset = x;
 
         /* Update the saved copy of the root offset */
-        memcpy(ffa_get_memory(t->ffa, 8), &t->root_offset, sizeof(uint64_t));
+        update_root_offset(t);
 
         return 2;
     }
@@ -290,7 +252,7 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
 
     if (wherep == &t->root_offset) {
         /* Update the saved copy of the root offset */
-        memcpy(ffa_get_memory(t->ffa, 8), &t->root_offset, sizeof(uint64_t));
+        update_root_offset(t);
     }
 
     return 2;
@@ -334,36 +296,26 @@ int critbit0_delete(critbit0_tree * t, const char *key, uint32_t key_len)
 
     if (!whereq) {
         t->root_offset = 0;
+        update_root_offset(t);
         return 1;
     }
 
     *whereq = q->child[1 - direction];
+    if (whereq == &t->root_offset) {
+        update_root_offset(t);
+    }
+
     //deallocator(q, sizeof(critbit0_node));
 
     return 1;
 }
 
-static void traverse(critbit0_tree * t, uint64_t top)
-{
-    uint64_t p = top;
-
-    if (1 & p) {
-        critbit0_node *q = ffa_get_memory(t->ffa, p - 1);
-        traverse(t, q->child[0]);
-        traverse(t, q->child[1]);
-        deallocator(t, p - 1, sizeof(critbit0_node));
-    }
-    else {
-        /* TODO: read in key_len and value_len */
-        deallocator(t, p, sizeof(critbit0_node));
-    }
-}
-
 void critbit0_clear(critbit0_tree * t)
 {
-    if (t->root_offset)
-        traverse(t, t->root_offset);
     t->root_offset = 0;
+    update_root_offset(t);
+
+    ffa_truncate(t->ffa, 8 + sizeof(uint64_t));
 }
 
 static int

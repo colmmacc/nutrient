@@ -44,3 +44,4 @@ int ffa_close(struct ffa * handle);
 
 void * ffa_get_base(struct ffa * handle);
 void * ffa_get_memory(struct ffa * handle, uint64_t offset);
+int ffa_truncate(struct ffa * handle, uint64_t size);

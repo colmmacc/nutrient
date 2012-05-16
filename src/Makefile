@@ -1,12 +1,14 @@
 CFLAGS=-Wall -pedantic -std=c99
 
-all: runtest critbit.o ffa.o
+all: runtest critbit.o ffa.o util.o
 
 ffa.o: ffa.c ffa.h
 
-critbit.o: critbit.c critbit.h
+util.o: util.c util.h
 
-test: test.c critbit.o ffa.o 
+critbit.o: critbit.c critbit.h 
+
+test: test.c critbit.o ffa.o util.o
 
 runtest: test
 	./test 

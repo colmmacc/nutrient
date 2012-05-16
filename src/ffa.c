@@ -25,6 +25,17 @@ void * ffa_get_base(struct ffa * handle)
     return handle->base;
 }
 
+int ffa_truncate(struct ffa * handle, uint64_t size)
+{
+    int r = ftruncate(handle->fd, size);
+    if (r <  0) {
+        return r;
+    }
+
+    handle->size = size;
+    return 0;
+}
+
 void * ffa_get_memory(struct ffa * handle, uint64_t offset)
 {
     return (void *) (((intptr_t) handle->base) + offset);
