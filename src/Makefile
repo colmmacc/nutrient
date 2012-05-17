@@ -1,4 +1,4 @@
-CFLAGS=-Wall -pedantic -std=c99
+CFLAGS=-Wall -pedantic -std=c99 -g
 
 all: runtest critbit.o ffa.o util.o nutrient_patch nutrient_dump nutrient_query
 

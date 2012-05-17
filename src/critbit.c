@@ -279,7 +279,7 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
 
     uint32_t newbyte;
     uint32_t newotherbits = 0;
-    char * found_key = ffa_get_memory(t->ffa, p + 8);
+    uint8_t * found_key = ffa_get_memory(t->ffa, p + 8);
 
     /* Compare the key to the node, until we find a difference */
     for (newbyte = 0; newbyte < key_len; ++newbyte) {
