@@ -3,8 +3,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <assert.h>
+#include <inttypes.h>
 
-#include "nutrient.h"
 #include "critbit.h"
 #include "ffa.h"
 
@@ -37,29 +37,6 @@ int cidr_cb(const char *key, uint32_t key_len, const char *value,
 
     return 1;
 }
-int test_critbit1()
-{
-    critbit0_tree *tree;
-    const char *value;
-    const char *prefix;
-    uint32_t value_len;
-    uint32_t prefix_len;
-
-    unlink("2");
-    tree = critbit0_create("2");
-
-    critbit0_insert(tree, "\001", 1, "1", 2);
-    critbit0_insert(tree, "\002", 1, "2", 2);
-    critbit0_insert(tree, "\003", 1, "3", 2);
-    critbit0_insert(tree, "\004", 1, "4", 2);
-
-    print_tree(tree);
-
-    critbit0_sync(tree);
-    critbit0_close(tree);
-
-    return 0;
-}
 
 int test_critbit0()
 {
@@ -88,8 +65,8 @@ int test_critbit0()
     printf("All prefixed:\n");
     critbit0_allprefixed(tree, "", 0, allprefixed_cb, NULL);
 
-    printf("colmus: %d ", critbit0_find_longest_prefix(tree, "colm\0us", 8, &prefix, &prefix_len, &value, &value_len));
-    printf("prefix: %s prefix_len: %lu value_len: %lu value: %s\n", prefix, prefix_len, value_len, value);
+    printf("colmus: %d ", critbit0_find_predecessor(tree, "colm\0us", 8, &prefix, &prefix_len, &value, &value_len));
+    printf("prefix: %s prefix_len: %" PRIu32 " value_len: %" PRIu32 " value: %s\n", prefix, prefix_len, value_len, value);
  
     //critbit0_delete(tree, "colm", 4);
 
@@ -112,38 +89,10 @@ int test_critbit0()
     //critbit0_allprefixed(tree, "", 0, allprefixed_cb, NULL);
     printf("\n");
 
-    print_tree(tree);
+    // print_tree(tree);
 
     critbit0_sync(tree);
     critbit0_close(tree);
-
-    return 0;
-}
-
-int test_ffa()
-{
-    struct ffa *handle;
-    char *offset;
-
-    handle = ffa_create("stupid");
-
-    offset = ffa_alloc(handle, 10);
-    printf("offset: %p\n", offset);
-
-    strcpy(offset, "colm");
-
-    offset = ffa_alloc(handle, 20);
-    printf("offset: %p\n", offset);
-    strcpy(offset, "veronica");
-
-    offset = ffa_alloc(handle, 30);
-    printf("offset: %p\n", offset);
-    strcpy(offset, "foobar");
-
-    ffa_sync(handle);
-    ffa_close(handle);
-
-    unlink("stupid");
 
     return 0;
 }
@@ -155,8 +104,6 @@ int test_cidr()
     unsigned char ip2[4] = { 10, 0, 3, 0 };
     unsigned char ip3[4] = { 10, 0, 3, 128 };
     unsigned char ip4[4] = { 10, 7, 6, 8 };
-    unsigned char ip5[4] = { 10, 0, 3, 126 };
-    unsigned char ip6[4] = { 10, 0, 3, 129 };
     const char * prefix;
     const char * value;
     uint32_t prefix_len;
@@ -165,8 +112,8 @@ int test_cidr()
     unlink("cidr");
     tree = critbit0_create("cidr");
 
-    critbit0_insert(tree, (const char *) ip1, 1, "123", 4);
-    critbit0_insert(tree, (const char *) ip2, 3, "456", 4);
+    critbit0_insert(tree, (const char *) ip1, 4, "123", 4);
+    critbit0_insert(tree, (const char *) ip2, 4, "456", 4);
     critbit0_insert(tree, (const char *) ip3, 4, "789", 4);
 
     printf("All CIDRs:\n");
@@ -174,10 +121,11 @@ int test_cidr()
 
     printf("Longest match:\n");
 
-    printf("10.6.7.8: %d\n", critbit0_find_longest_prefix(tree, ip4, 4, &prefix, &prefix_len, &value, &value_len));
+    printf("10.6.7.8: %d\n", critbit0_find_predecessor(tree, (char *) ip4, 4, &prefix, &prefix_len, &value, &value_len));
+    printf("%s %d\n", value, value_len);
 
-//    printf("prefix: %u.%u.%u.%u prefix_len: %lu value_len: %lu value: %s\n", prefix[0], prefix[1], prefix[2], (unsigned char) prefix[3], prefix_len, value_len, value);
-    print_tree(tree);
+    printf("prefix: %u.%u.%u.%u prefix_len: %" PRIu32 " value_len: %" PRIu32 " value: %s\n", prefix[0], prefix[1], prefix[2], (unsigned char) prefix[3], prefix_len, value_len, value);
+    //print_tree(tree);
 
     critbit0_sync(tree);
     critbit0_close(tree);
@@ -192,9 +140,6 @@ int main(int argc, char **argv)
 
     test_critbit0();
     printf("\n");
-    test_critbit1();
-
-    //test_ffa();
 
     return 0;
 }

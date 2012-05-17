@@ -18,11 +18,6 @@ typedef struct
     uint8_t otherbits;
 } critbit0_node;
 
-static void debug_node(const char * verb, critbit0_node * node, uint64_t offset)
-{
- //   printf("%s (%llu) child0: %llu child1: %llu byte: %lu bits: %d\n", verb, offset, node->child[0], node->child[1], node->byte, node->otherbits);
-}
-
 static void read_critbit0_node(critbit0_tree * tree, uint64_t offset,
                                critbit0_node * node)
 {
@@ -32,8 +27,6 @@ static void read_critbit0_node(critbit0_tree * tree, uint64_t offset,
     uint64_unpack(memory + 8, &node->child[1]);
     uint32_unpack(memory + 16, &node->byte);
     node->otherbits = (uint8_t) memory[20];
-
-    debug_node("read", node, offset);
 }
 
 static void update_critbit0_node(critbit0_tree * tree, uint64_t offset,
@@ -46,8 +39,6 @@ static void update_critbit0_node(critbit0_tree * tree, uint64_t offset,
     uint64_pack(node->child[1], memory + 8);
     uint32_pack(node->byte, memory + 16);
     memory[20] = (char) node->otherbits;
-
-    debug_node("update", node, offset);
 }
 
 static uint64_t add_critbit0_node(critbit0_tree * tree, critbit0_node * node)
@@ -105,6 +96,36 @@ critbit0_tree *critbit0_create(const char *filename)
     return tree;
 }
 
+critbit0_tree *critbit0_open(const char *filename)
+{
+    struct ffa *f;
+    critbit0_tree *tree;
+
+    f = ffa_open(filename);
+    if (f == NULL) {
+        return NULL;
+    }
+
+    /* Confirm that the first 8 bytes are our magic number */
+    if (ffa_get_size(f) < 24 || memcmp(ffa_get_memory(f, 0), "CrItBiT0", 8))
+    {
+        return NULL;
+    }
+
+    tree = malloc(sizeof(critbit0_tree));
+    if (tree == NULL) {
+        return NULL;
+    }
+
+    /* Unpack the root offset */
+    uint64_unpack(ffa_get_memory(f, 8), &tree->root_offset);
+
+    /* Set the ffa */
+    tree->ffa = f;
+
+    return tree;
+}
+
 int critbit0_sync(critbit0_tree * t)
 {
     return ffa_sync(t->ffa);
@@ -115,46 +136,26 @@ int critbit0_close(critbit0_tree * t)
     return ffa_close(t->ffa);
 }
 
-static void *_critbit0_find_longest_prefix(critbit0_tree * t, const char *key,
-                                           uint32_t key_len)
+static void *_critbit0_find_predecessor(critbit0_tree * t, const char *key, uint32_t key_len)
 {
     uint64_t longest_prefix = t->root_offset;
-    uint32_t found_key_len;
-    uint32_t found_value_len;
     critbit0_node q = {{ 0 }};
 
     if (!longest_prefix)
         return NULL;
 
     while (1 & longest_prefix) {
-        printf("got here! %llu\n", longest_prefix);
         read_critbit0_node(t, longest_prefix - 1, &q);
-
-        if (q.byte > key_len)
-            break;
-
-        printf("still here! %d %llu\n", q.byte, longest_prefix);
 
         uint8_t c = 0;
         if (q.byte < key_len)
             c = key[q.byte];
 
         const int direction = (1 + (q.otherbits | c)) >> 8;
-
         longest_prefix = q.child[direction];
     }
 
-    uint32_unpack(ffa_get_memory(t->ffa, longest_prefix), &found_key_len);
-    const char * found = ffa_get_memory(t->ffa, longest_prefix);
-
-    printf("fkl: %lu\n", found_key_len);
-
-    if (found_key_len <= key_len
-        && 0 == memcmp(key, found + 8, found_key_len)) {
-        return found;
-    }
-    
-    return NULL;
+    return ffa_get_memory(t->ffa, longest_prefix);
 }
 
 static void *_critbit0_find(critbit0_tree * t, const char *key,
@@ -178,7 +179,7 @@ static void *_critbit0_find(critbit0_tree * t, const char *key,
     }
 
     uint32_unpack(ffa_get_memory(t->ffa, p), &found_key_len);
-    const char * found = ffa_get_memory(t->ffa, p);
+    char * found = ffa_get_memory(t->ffa, p);
 
     if (found_key_len == key_len
         && 0 == memcmp(key, found + 8, key_len)) {
@@ -191,7 +192,7 @@ static void *_critbit0_find(critbit0_tree * t, const char *key,
 int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
                   const char **value, uint32_t * value_len)
 {
-    void *r = _critbit0_find(t, key, key_len);;
+    char *r = _critbit0_find(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -200,16 +201,16 @@ int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
     uint32_unpack(r + 4, value_len);
 
     /* Point the value to the right data */
-    *value = (const char *) r + sizeof(uint32_t) + sizeof(uint32_t) + key_len;
+    *value = (const char *) r + 8 + key_len;
 
     return 0;
 }
 
-int critbit0_find_longest_prefix(critbit0_tree * t, const char *key, uint32_t key_len,
+int critbit0_find_predecessor(critbit0_tree * t, const char *key, uint32_t key_len,
                                 const char **prefix, uint32_t * prefix_len,
                                 const char **value, uint32_t * value_len)
 {
-    void *r = _critbit0_find_longest_prefix(t, key, key_len);;
+    char *r = _critbit0_find_predecessor(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -229,39 +230,34 @@ int critbit0_find_longest_prefix(critbit0_tree * t, const char *key, uint32_t ke
     return 0;
 }
 
-
-
 int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
                     const char *value, uint32_t value_len)
 {
     const uint8_t *const ubytes = (void *) key;
     uint64_t p = t->root_offset;
     critbit0_node q;
+    critbit0_node newnode;
+
+    uint64_t new_data_offset = ffa_alloc(t->ffa, 8 + key_len + value_len);
+    if (new_data_offset == FFA_ERROR)
+        return 0;
+
+    /* Copy the key and value length */
+    uint32_pack(key_len, ffa_get_memory(t->ffa, new_data_offset));
+    uint32_pack(value_len, ffa_get_memory(t->ffa, new_data_offset + 4));
+
+    /* Copy the key */
+    memcpy(ffa_get_memory(t->ffa, new_data_offset + 8), key, key_len);
+
+    /* Copy the value */
+    memcpy(ffa_get_memory(t->ffa, new_data_offset + 8 + key_len), value, value_len);
 
     /* If there's no root node, then this key is automatically
      ** the new root node.
      */
     if (!p) {
-        uint64_t x = ffa_alloc(t->ffa, 8 + key_len + value_len);
-        if (x == FFA_ERROR)
-            return 0;
-
-        /* Copy the key and value length */
-        uint32_pack(key_len, ffa_get_memory(t->ffa, x));
-        uint32_pack(value_len, ffa_get_memory(t->ffa, x + 4));
-
-        /* Copy the key */
-        memcpy(ffa_get_memory
-               (t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t)), key,
-               key_len);
-
-        /* Copy the value */
-        memcpy(ffa_get_memory
-               (t->ffa, x + sizeof(uint32_t) + sizeof(uint32_t) + key_len),
-               value, value_len);
-
         /* Create a root node */
-        t->root_offset = x;
+        t->root_offset = new_data_offset;
 
         /* Update the saved copy of the root offset */
         update_root_offset(t);
@@ -300,7 +296,9 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
         goto different_byte_found;
     }
 
-    /* If we got to here, there's we're inserting a duplicate key */
+    /* If we got to here, there's we're inserting a duplicate key, set
+    ** new direction to 1 so that new nodes precede old nodes. 
+    */
     int newdirection = 1;
 
     goto node_insertion;
@@ -322,27 +320,9 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
 
   node_insertion:
 
-    newdirection = newdirection;
-
-    critbit0_node newnode;
-
-    /* Allocate space for its data */
-    uint64_t x = ffa_alloc(t->ffa, 8 + key_len + value_len);
-    if (x == FFA_ERROR) {
-        return 0;
-    }
-
-    /* Copy the key and value length */
-    uint32_pack(key_len, ffa_get_memory(t->ffa, x));
-    uint32_pack(value_len, ffa_get_memory(t->ffa, x + 4));
-
-    /* Copy the key and the value */
-    memcpy(ffa_get_memory(t->ffa, x + 8), key, key_len);
-    memcpy(ffa_get_memory(t->ffa, x + 8 + key_len), value, value_len);
-
     newnode.byte = newbyte;
     newnode.otherbits = newotherbits;
-    newnode.child[1 - newdirection] = x;
+    newnode.child[1 - newdirection] = new_data_offset;
 
     /* 
      ** We start off with the root node as the insertion point,
@@ -390,33 +370,33 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
     return 2;
 }
 
-int critbit0_delete(critbit0_tree * t, const char *key, uint32_t key_len)
+int critbit0_delete(critbit0_tree * t, const char *key, uint32_t key_len, const char * value, uint32_t value_len)
 {
+#if 0
     const uint8_t *ubytes = (void *) key;
     uint64_t p = t->root_offset;
-    uint64_t *wherep = &t->root_offset;
-    uint64_t *whereq = 0;
-    critbit0_node q = { 0 };
+    uint64_t offset_of_deletion_point = t->root_offset;
+    uint64_t offset_of_pointer_to_deletion_point = 8;
+    critbit0_node q = {{ 0 }};
     int direction = 0;
     uint32_t found_key_len;
 
-    if (!p)
+    if (!t->root_offset)
         return 0;
 
-#if 0
-
-    while (1 & p) {
+    while (1 & offset_of_deletion_point) {
         whereq = wherep;
 
-        read_critbit0_node(t, p - 1, &q);
+        read_critbit0_node(t, offset_of_deletion_point - 1, &q);
 
         uint8_t c = 0;
         if (q.byte < key_len)
             c = ubytes[q.byte];
 
         direction = (1 + (q->otherbits | c)) >> 8;
-        wherep = q->child + direction;
-        p = *wherep;
+
+        offset_of_pointer_to_deletion_point = (offset_of_deletion_point - 1) + (direction * 8);
+        offset_of_deletion_point = q.child[direction];
     }
 
     memcpy(&found_key_len, ffa_get_memory(t->ffa, p), sizeof(uint32_t));
@@ -521,6 +501,8 @@ critbit0_allprefixed(critbit0_tree * t, const char *prefix,
     return allprefixed_traverse(t, top, handle, arg);
 }
 
+#if 0
+
 static void print_node(int level, critbit0_tree * t, uint64_t offset)
 {
     int i;
@@ -569,3 +551,5 @@ void print_tree(critbit0_tree * t)
         print_node(0, t, t->root_offset);
     
 }
+
+#endif

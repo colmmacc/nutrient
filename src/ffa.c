@@ -21,6 +21,11 @@ struct ffa
     void *base;
 };
 
+uint64_t ffa_get_size(struct ffa *handle)
+{
+    return handle->size;
+}
+
 void *ffa_get_base(struct ffa *handle)
 {
     return handle->base;
@@ -88,7 +93,7 @@ struct ffa *ffa_open(const char *filename)
         return NULL;
     }
 
-    return 0;
+    return ret;
 }
 
 uint64_t ffa_free(struct ffa * handle, uint64_t offset, size_t size)
