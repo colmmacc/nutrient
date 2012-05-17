@@ -37,6 +37,29 @@ int cidr_cb(const char *key, uint32_t key_len, const char *value,
 
     return 1;
 }
+int test_critbit1()
+{
+    critbit0_tree *tree;
+    const char *value;
+    const char *prefix;
+    uint32_t value_len;
+    uint32_t prefix_len;
+
+    unlink("2");
+    tree = critbit0_create("2");
+
+    critbit0_insert(tree, "\001", 1, "1", 2);
+    critbit0_insert(tree, "\002", 1, "2", 2);
+    critbit0_insert(tree, "\003", 1, "3", 2);
+    critbit0_insert(tree, "\004", 1, "4", 2);
+
+    print_tree(tree);
+
+    critbit0_sync(tree);
+    critbit0_close(tree);
+
+    return 0;
+}
 
 int test_critbit0()
 {
@@ -57,6 +80,7 @@ int test_critbit0()
     critbit0_insert(tree, "colm", 5, "456", 4);
     critbit0_insert(tree, "colm", 5, "333", 4);
     critbit0_insert(tree, "colm", 5, "777", 4);
+    critbit0_insert(tree, "colman", 7, "777", 4);
 
     printf("All prefixed col:\n");
     critbit0_allprefixed(tree, "col", 3, allprefixed_cb, NULL);
@@ -153,8 +177,6 @@ int test_cidr()
     printf("10.6.7.8: %d\n", critbit0_find_longest_prefix(tree, ip4, 4, &prefix, &prefix_len, &value, &value_len));
 
 //    printf("prefix: %u.%u.%u.%u prefix_len: %lu value_len: %lu value: %s\n", prefix[0], prefix[1], prefix[2], (unsigned char) prefix[3], prefix_len, value_len, value);
-
-
     print_tree(tree);
 
     critbit0_sync(tree);
@@ -169,6 +191,8 @@ int main(int argc, char **argv)
     test_cidr();
 
     test_critbit0();
+    printf("\n");
+    test_critbit1();
 
     //test_ffa();
 
