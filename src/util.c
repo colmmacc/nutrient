@@ -20,4 +20,5 @@ void uint32_pack(uint32_t u, char *p)
 void uint32_unpack(const char *p, uint32_t * u)
 {
     memcpy(u, p, sizeof(uint32_t));
+    //printf("%02x %02x %02x %02x %lu\n", p[0], p[1], p[2], p[3], *u);
 }

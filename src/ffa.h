@@ -37,7 +37,7 @@ uint64_t ffa_alloc(struct ffa *handle, size_t size);
 ** @param size   size bytes of memory will be
 **               recorded as free
 */
-int ffa_free(struct ffa *handle, void *ptr, size_t size);
+uint64_t ffa_free(struct ffa *handle, uint64_t offset, size_t size);
 
 int ffa_sync(struct ffa *handle);
 int ffa_close(struct ffa *handle);

@@ -91,6 +91,14 @@ struct ffa *ffa_open(const char *filename)
     return 0;
 }
 
+uint64_t ffa_free(struct ffa * handle, uint64_t offset, size_t size)
+{
+    /* At present ffa_free is unimplemented. A future version may keep track
+    ** of freed memory and make it available for re-use. But not this one!
+    */
+    return 0;
+}
+
 uint64_t ffa_alloc(struct ffa * handle, size_t size)
 {
     if (size <= 0) {
