@@ -55,6 +55,8 @@ int test_critbit0()
     critbit0_insert(tree, "coln", 5, "321", 4);
     critbit0_insert(tree, "veronica", 9, "456", 4);
     critbit0_insert(tree, "colm", 5, "456", 4);
+    critbit0_insert(tree, "colm", 5, "333", 4);
+    critbit0_insert(tree, "colm", 5, "777", 4);
 
     printf("All prefixed col:\n");
     critbit0_allprefixed(tree, "col", 3, allprefixed_cb, NULL);

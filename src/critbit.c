@@ -278,7 +278,7 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
 
     uint32_t newbyte;
     uint32_t newotherbits = 0;
-    char * found_key = ffa_get_memory(t->ffa, p + sizeof(uint32_t) + sizeof(uint32_t));
+    char * found_key = ffa_get_memory(t->ffa, p + 8);
 
     /* Compare the key to the node, until we find a difference */
     for (newbyte = 0; newbyte < key_len; ++newbyte) {
@@ -289,14 +289,13 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
     }
 
     /* The key is identical to p, right up to just before "newotherbits" */
-    if (found_key[newbyte] != 0)
+    if (newbyte != key_len)
     {
         newotherbits = found_key[newbyte];
         goto different_byte_found;
     }
 
-    /* If we got to here, there's some kind of error */
-    return 1;
+    /* If we got to here, there's we're inserting a duplicate key */
 
   different_byte_found:
 
