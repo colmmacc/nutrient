@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <errno.h>
 
-#include "critbit.h"
+#include "nutrient.h"
 #include "nutrient_util.h"
 #include "nutrient_ffa.h"
 

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "critbit.h"
+#include "nutrient.h"
 
 int dump_key_value(const char *key, uint32_t key_len, const char *value,
                    uint32_t value_len, void *arg)

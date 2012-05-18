@@ -6,7 +6,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 
-#include "critbit.h"
+#include "nutrient.h"
 
 void usage()
 {
