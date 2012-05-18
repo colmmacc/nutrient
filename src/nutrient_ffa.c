@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "ffa.h"
+#include "nutrient_ffa.h"
 
 struct ffa
 {

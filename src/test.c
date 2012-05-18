@@ -6,7 +6,7 @@
 #include <inttypes.h>
 
 #include "critbit.h"
-#include "ffa.h"
+#include "nutrient_ffa.h"
 
 int allprefixed_cb(const char *key, uint32_t key_len, const char *value,
                    uint32_t value_len, void *arg)

@@ -8,8 +8,8 @@
 #include <errno.h>
 
 #include "critbit.h"
-#include "util.h"
-#include "ffa.h"
+#include "nutrient_util.h"
+#include "nutrient_ffa.h"
 
 typedef struct
 {

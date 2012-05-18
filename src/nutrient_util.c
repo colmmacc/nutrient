@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "util.h"
+#include "nutrient_util.h"
 
 void uint64_pack(uint64_t u, char *p)
 {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "ffa.h"
+#include "nutrient_ffa.h"
 
 typedef struct
 {

@@ -1,20 +1,20 @@
 CFLAGS=-Wall -pedantic -std=c99 -g
 
-all: runtest critbit.o ffa.o util.o nutrient_patch nutrient_dump nutrient_query
+all: runtest critbit.o nutrient_ffa.o nutrient_util.o nutrient_patch nutrient_dump nutrient_query
 
-ffa.o: ffa.c ffa.h
+nutrient_ffa.o: nutrient_ffa.c nutrient_ffa.h
 
-util.o: util.c util.h
+nutrient_util.o: nutrient_util.c nutrient_util.h
 
 critbit.o: critbit.c critbit.h 
 
-test: test.c critbit.o ffa.o util.o
+test: test.c critbit.o nutrient_ffa.o nutrient_util.o
 
-nutrient_patch: nutrient_patch.c critbit.o ffa.o util.o
+nutrient_patch: nutrient_patch.c critbit.o nutrient_ffa.o nutrient_util.o
 
-nutrient_dump: nutrient_dump.c critbit.o ffa.o util.o
+nutrient_dump: nutrient_dump.c critbit.o nutrient_ffa.o nutrient_util.o
 
-nutrient_query: nutrient_query.c critbit.o ffa.o util.o
+nutrient_query: nutrient_query.c critbit.o nutrient_ffa.o nutrient_util.o
 
 runtest: test
 	./test 
