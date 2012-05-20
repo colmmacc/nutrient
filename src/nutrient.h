@@ -29,3 +29,9 @@ int critbit0_allprefixed(critbit0_tree * t, const char *key, uint32_t key_len,
 int critbit0_find_predecessor(critbit0_tree * t, const char *key, uint32_t key_len,
                                 const char **prefix, uint32_t * prefix_len,
                                 const char **value, uint32_t * value_len);
+
+int critbit0_find_longest_prefix(critbit0_tree * t, const char *key, uint32_t key_len,
+                                const char **prefix, uint32_t * prefix_len,
+                                const char **value, uint32_t * value_len);
+
+void print_tree(critbit0_tree *t);
