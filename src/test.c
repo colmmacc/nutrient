@@ -86,7 +86,7 @@ int test_critbit0()
     //critbit0_allprefixed(tree, "", 0, allprefixed_cb, NULL);
     printf("\n");
 
-    // print_tree(tree);
+    print_tree(tree);
 
     critbit0_sync(tree);
     critbit0_close(tree);
@@ -149,24 +149,31 @@ int test_cidr()
 
     printf("Longest match:\n");
 
-    printf("129.7.6.8 (%s): %d ", ip4_str, critbit0_find_predecessor(tree, ip4_str, 32, &prefix, &prefix_len, &value, &value_len));
+    printf("129.7.6.8 (%s): %d ", ip4_str, critbit0_find_longest_prefix(tree, ip4_str, 32, &prefix, &prefix_len, &value, &value_len));
     printf("%s\n", value);
 
-    printf("10.0.3.1 (%s): %d ", ip5_str, critbit0_find_predecessor(tree, ip5_str, 32, &prefix, &prefix_len, &value, &value_len));
+    printf("10.0.3.1 (%s): %d ", ip5_str, critbit0_find_longest_prefix(tree, ip5_str, 32, &prefix, &prefix_len, &value, &value_len));
     printf("%s\n", value);
 
-    printf("10.0.3.137 (%s): %d ", ip6_str, critbit0_find_predecessor(tree, ip6_str, 32, &prefix, &prefix_len, &value, &value_len));
+    printf("10.0.3.137 (%s): %d ", ip6_str, critbit0_find_longest_prefix(tree, ip6_str, 32, &prefix, &prefix_len, &value, &value_len));
     printf("%s\n", value);
 
-    printf("10.8.0.0 (%s): %d ", ip7_str, critbit0_find_predecessor(tree, ip7_str, 32, &prefix, &prefix_len, &value, &value_len));
+    printf("10.8.0.0 (%s): %d ", ip7_str, critbit0_find_longest_prefix(tree, ip7_str, 32, &prefix, &prefix_len, &value, &value_len));
     printf("%s\n", value);
 
-    printf("11.0.0.0 (%s): %d ", ip6_str, critbit0_find_predecessor(tree, ip8_str, 32, &prefix, &prefix_len, &value, &value_len));
+    printf("11.0.0.0 (%s): %d ", ip6_str, critbit0_find_longest_prefix(tree, ip8_str, 32, &prefix, &prefix_len, &value, &value_len));
     printf("%s\n", value);
 
     print_tree(tree);
 
-    printf("\n");
+    printf("\n\n");
+    
+#if 0
+    critbit0_insert(tree, ip5_str, 32, "10.0.3.1/32", 12);
+    print_tree(tree);
+    printf("\n\n");
+    critbit0_allprefixed(tree, "000010100000000000000011", 24, cidr_cb, NULL);
+#endif
 
     critbit0_sync(tree);
     critbit0_close(tree);
@@ -179,7 +186,7 @@ int main(int argc, char **argv)
 {
     test_cidr();
 
-    test_critbit0();
+//    test_critbit0();
     printf("\n");
 
     return 0;
