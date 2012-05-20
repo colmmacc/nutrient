@@ -22,7 +22,7 @@ typedef struct
 static void read_critbit0_node(critbit0_tree * tree, uint64_t offset,
                                critbit0_node * node)
 {
-    const char *memory = ffa_get_memory(tree->ffa, offset);
+    const uint8_t *memory = ffa_get_memory(tree->ffa, offset);
 
     uint64_unpack(memory, &node->child[0]);
     uint64_unpack(memory + 8, &node->child[1]);
@@ -54,8 +54,8 @@ static void print_node(int level, critbit0_tree * t, uint64_t offset)
     else {
         uint32_t key_len;
         uint32_t value_len;
-        const char * key;
-        const char * value;
+        const uint8_t * key;
+        const uint8_t * value;
     
         uint32_unpack(ffa_get_memory(t->ffa, offset), &key_len);
         uint32_unpack(ffa_get_memory(t->ffa, offset + 4), &value_len);
@@ -88,7 +88,7 @@ void print_tree(critbit0_tree * t)
 static void update_critbit0_node(critbit0_tree * tree, uint64_t offset,
                                  critbit0_node * node)
 {
-    char *memory = ffa_get_memory(tree->ffa, offset);
+    uint8_t *memory = ffa_get_memory(tree->ffa, offset);
 
     /* Pack everything in */
     uint64_pack(node->child[0], memory);
@@ -192,7 +192,7 @@ int critbit0_close(critbit0_tree * t)
     return ffa_close(t->ffa);
 }
 
-static void *_critbit0_find_predecessor(critbit0_tree * t, const char *key, uint32_t key_len)
+static void *_critbit0_find_predecessor(critbit0_tree * t, const uint8_t *key, uint32_t key_len)
 {
     uint64_t predecessor = t->root_offset;
     critbit0_node q = {{ 0 }};
@@ -214,7 +214,7 @@ static void *_critbit0_find_predecessor(critbit0_tree * t, const char *key, uint
     return ffa_get_memory(t->ffa, predecessor);
 }
 
-static void *_critbit0_find_longest_prefix(critbit0_tree * t, const char *key, uint32_t key_len)
+static void *_critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key, uint32_t key_len)
 {
     uint8_t * found     = _critbit0_find_predecessor(t, key, key_len);
 
@@ -232,7 +232,7 @@ static void *_critbit0_find_longest_prefix(critbit0_tree * t, const char *key, u
     critbit0_node q;
 
     /* See if the predeccessor is our longest prefix */
-    uint32_unpack((char *) found, &found_key_len); 
+    uint32_unpack((uint8_t *) found, &found_key_len); 
 
     /* Compare the key to the node, until we find a difference */
     for (newbyte = 0; newbyte < found_key_len; ++newbyte) {
@@ -269,7 +269,7 @@ static void *_critbit0_find_longest_prefix(critbit0_tree * t, const char *key, u
             uint8_t * candidate_prefix = ffa_get_memory(t->ffa, q.child[1 - direction]);
             uint32_t candidate_prefix_len;
 
-            uint32_unpack((char *) candidate_prefix, &candidate_prefix_len);
+            uint32_unpack((uint8_t *) candidate_prefix, &candidate_prefix_len);
 
             if (candidate_prefix_len < key_len && !memcmp(candidate_prefix + 8, key, candidate_prefix_len))
             {
@@ -282,7 +282,7 @@ static void *_critbit0_find_longest_prefix(critbit0_tree * t, const char *key, u
             uint8_t * candidate_prefix = ffa_get_memory(t->ffa, q.child[direction]);
             uint32_t candidate_prefix_len;
 
-            uint32_unpack((char *) candidate_prefix, &candidate_prefix_len);
+            uint32_unpack((uint8_t *) candidate_prefix, &candidate_prefix_len);
 
             if (candidate_prefix_len < key_len && !memcmp(candidate_prefix + 8, key, candidate_prefix_len))
             {
@@ -308,7 +308,7 @@ static void *_critbit0_find_longest_prefix(critbit0_tree * t, const char *key, u
     }
 }
 
-static void *_critbit0_find(critbit0_tree * t, const char *key,
+static void *_critbit0_find(critbit0_tree * t, const uint8_t *key,
                             uint32_t key_len)
 {
     uint64_t p = t->root_offset;
@@ -329,7 +329,7 @@ static void *_critbit0_find(critbit0_tree * t, const char *key,
     }
 
     uint32_unpack(ffa_get_memory(t->ffa, p), &found_key_len);
-    char * found = ffa_get_memory(t->ffa, p);
+    uint8_t * found = ffa_get_memory(t->ffa, p);
 
     if (found_key_len == key_len
         && 0 == memcmp(key, found + 8, key_len)) {
@@ -339,10 +339,10 @@ static void *_critbit0_find(critbit0_tree * t, const char *key,
     return NULL;
 }
 
-int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
-                  const char **value, uint32_t * value_len)
+int critbit0_find(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+                  const uint8_t **value, uint32_t * value_len)
 {
-    char *r = _critbit0_find(t, key, key_len);;
+    uint8_t *r = _critbit0_find(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -351,40 +351,16 @@ int critbit0_find(critbit0_tree * t, const char *key, uint32_t key_len,
     uint32_unpack(r + 4, value_len);
 
     /* Point the value to the right data */
-    *value = (const char *) r + 8 + key_len;
+    *value = (const uint8_t *) r + 8 + key_len;
 
     return 0;
 }
 
-int critbit0_find_longest_prefix(critbit0_tree * t, const char *key, uint32_t key_len,
-                                const char **prefix, uint32_t * prefix_len,
-                                const char **value, uint32_t * value_len)
+int critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+                                const uint8_t **prefix, uint32_t * prefix_len,
+                                const uint8_t **value, uint32_t * value_len)
 {
-    char *r = _critbit0_find_longest_prefix(t, key, key_len);;
-
-    if (!r)
-        return -1;
-
-    /* Copy the prefix length */
-    uint32_unpack(r, prefix_len);
-
-    /* Copy the value length */
-    uint32_unpack(r + 4, value_len);
-
-    /* Point the found to the right data */
-    *prefix = (const char *) r + 8;
-
-    /* Point the value to the right data */
-    *value = (const char *) r + 8 + *prefix_len;
-
-    return 0;
-}
-
-int critbit0_find_predecessor(critbit0_tree * t, const char *key, uint32_t key_len,
-                                const char **prefix, uint32_t * prefix_len,
-                                const char **value, uint32_t * value_len)
-{
-    char *r = _critbit0_find_predecessor(t, key, key_len);;
+    uint8_t *r = _critbit0_find_longest_prefix(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -396,16 +372,40 @@ int critbit0_find_predecessor(critbit0_tree * t, const char *key, uint32_t key_l
     uint32_unpack(r + 4, value_len);
 
     /* Point the found to the right data */
-    *prefix = (const char *) r + 8;
+    *prefix = (const uint8_t *) r + 8;
 
     /* Point the value to the right data */
-    *value = (const char *) r + 8 + *prefix_len;
+    *value = (const uint8_t *) r + 8 + *prefix_len;
 
     return 0;
 }
 
-int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
-                    const char *value, uint32_t value_len)
+int critbit0_find_predecessor(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+                                const uint8_t **prefix, uint32_t * prefix_len,
+                                const uint8_t **value, uint32_t * value_len)
+{
+    uint8_t *r = _critbit0_find_predecessor(t, key, key_len);;
+
+    if (!r)
+        return -1;
+
+    /* Copy the prefix length */
+    uint32_unpack(r, prefix_len);
+
+    /* Copy the value length */
+    uint32_unpack(r + 4, value_len);
+
+    /* Point the found to the right data */
+    *prefix = (const uint8_t *) r + 8;
+
+    /* Point the value to the right data */
+    *value = (const uint8_t *) r + 8 + *prefix_len;
+
+    return 0;
+}
+
+int critbit0_insert(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+                    const uint8_t *value, uint32_t value_len)
 {
     const uint8_t *const ubytes = (void *) key;
     uint64_t p = t->root_offset;
@@ -544,7 +544,7 @@ int critbit0_insert(critbit0_tree * t, const char *key, uint32_t key_len,
     return 2;
 }
 
-int critbit0_delete(critbit0_tree * t, const char *key, uint32_t key_len, const char * value, uint32_t value_len)
+int critbit0_delete(critbit0_tree * t, const uint8_t *key, uint32_t key_len, const uint8_t * value, uint32_t value_len)
 {
 #if 0
     const uint8_t *ubytes = (void *) key;
@@ -610,7 +610,7 @@ void critbit0_clear(critbit0_tree * t)
 
 static int
 allprefixed_traverse(critbit0_tree * t, uint64_t top,
-                     int (*handle) (const char *, uint32_t, const char *,
+                     int (*handle) (const uint8_t *, uint32_t, const uint8_t *,
                                     uint32_t, void *), void *arg)
 {
     uint32_t key_len;
@@ -633,17 +633,17 @@ allprefixed_traverse(critbit0_tree * t, uint64_t top,
 
     uint32_unpack(ffa_get_memory(t->ffa, top), &key_len);
     uint32_unpack(ffa_get_memory(t->ffa, top + 4), &value_len);
-    const char * key = ffa_get_memory(t->ffa, top + 8);
-    const char * value = ffa_get_memory(t->ffa, top + 8 + key_len);
+    const uint8_t * key = ffa_get_memory(t->ffa, top + 8);
+    const uint8_t * value = ffa_get_memory(t->ffa, top + 8 + key_len);
     
     return handle(key, key_len, value, value_len, arg);
 }
 
 int
-critbit0_allprefixed(critbit0_tree * t, const char *prefix,
-                     uint32_t prefix_len, int (*handle) (const char *,
+critbit0_allprefixed(critbit0_tree * t, const uint8_t *prefix,
+                     uint32_t prefix_len, int (*handle) (const uint8_t *,
                                                          uint32_t,
-                                                         const char *,
+                                                         const uint8_t *,
                                                          uint32_t, void *),
                      void *arg)
 {
@@ -667,7 +667,7 @@ critbit0_allprefixed(critbit0_tree * t, const char *prefix,
     }
 
     for (size_t i = 0; i < prefix_len; ++i) {
-        const char * found_key = ffa_get_memory(t->ffa, p + 8);
+        const uint8_t * found_key = ffa_get_memory(t->ffa, p + 8);
         if (found_key[i] != ubytes[i])
             return 1;
     }

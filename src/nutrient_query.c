@@ -42,7 +42,7 @@ int main(int argc, char * argv[])
     }
 
     char c;
-    char * key_data = NULL; 
+    uint8_t * key_data = NULL; 
 
     for (;;) {
         uint32_t key_len = 0;
@@ -94,7 +94,7 @@ int main(int argc, char * argv[])
         }
 
         /* Search for the data */
-        const char * value_data;
+        const uint8_t * value_data;
         uint32_t value_len;
     
         int found = critbit0_find(tree, key_data, key_len, &value_data, &value_len);

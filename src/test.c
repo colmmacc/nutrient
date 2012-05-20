@@ -9,7 +9,7 @@
 #include "nutrient_ffa.h"
 #include "nutrient_util.h"
 
-int allprefixed_cb(const char *key, uint32_t key_len, const char *value,
+int allprefixed_cb(const uint8_t *key, uint32_t key_len, const uint8_t *value,
                    uint32_t value_len, void *arg)
 {
     printf("key_len=%u value_len=%u key=", key_len, value_len);
@@ -21,7 +21,7 @@ int allprefixed_cb(const char *key, uint32_t key_len, const char *value,
     return 1;
 }
 
-int cidr_cb(const char *key, uint32_t key_len, const char *value,
+int cidr_cb(const uint8_t *key, uint32_t key_len, const uint8_t *value,
                    uint32_t value_len, void *arg)
 {
     printf("key=");
@@ -38,31 +38,31 @@ int cidr_cb(const char *key, uint32_t key_len, const char *value,
 int test_critbit0()
 {
     critbit0_tree *tree;
-    const char *value;
-    const char *prefix;
+    const uint8_t *value;
+    const uint8_t *prefix;
     uint32_t value_len;
     uint32_t prefix_len;
 
     unlink("trie");
     tree = critbit0_create("trie");
 
-    critbit0_insert(tree, "colm", 5, "657", 4);
-    critbit0_insert(tree, "columnar", 9, "822", 4);
-    critbit0_insert(tree, "veronica", 9, "123", 4);
-    critbit0_insert(tree, "coln", 5, "321", 4);
-    critbit0_insert(tree, "veronica", 9, "456", 4);
-    critbit0_insert(tree, "colm", 5, "456", 4);
-    critbit0_insert(tree, "colm", 5, "333", 4);
-    critbit0_insert(tree, "colm", 5, "777", 4);
-    critbit0_insert(tree, "colman", 7, "777", 4);
+    critbit0_insert(tree, (uint8_t *) "colm", 5, (uint8_t *) "657", 4);
+    critbit0_insert(tree, (uint8_t *) "columnar", 9, (uint8_t *) "822", 4);
+    critbit0_insert(tree, (uint8_t *) "veronica", 9, (uint8_t *) "123", 4);
+    critbit0_insert(tree, (uint8_t *) "coln", 5, (uint8_t *) "321", 4);
+    critbit0_insert(tree, (uint8_t *) "veronica", 9, (uint8_t *) "456", 4);
+    critbit0_insert(tree, (uint8_t *) "colm", 5, (uint8_t *) "456", 4);
+    critbit0_insert(tree, (uint8_t *) "colm", 5, (uint8_t *) "333", 4);
+    critbit0_insert(tree, (uint8_t *) "colm", 5, (uint8_t *) "777", 4);
+    critbit0_insert(tree, (uint8_t *) "colman", 7, (uint8_t *) "777", 4);
 
     printf("All prefixed col:\n");
-    critbit0_allprefixed(tree, "col", 3, allprefixed_cb, NULL);
+    critbit0_allprefixed(tree, (uint8_t *) "col", 3, allprefixed_cb, NULL);
 
     printf("All prefixed:\n");
-    critbit0_allprefixed(tree, "", 0, allprefixed_cb, NULL);
+    critbit0_allprefixed(tree, (uint8_t *) "", 0, allprefixed_cb, NULL);
 
-    printf("colmus: %d ", critbit0_find_predecessor(tree, "colm\0us", 8, &prefix, &prefix_len, &value, &value_len));
+    printf("colmus: %d ", critbit0_find_predecessor(tree, (uint8_t *) "colm\0us", 8, &prefix, &prefix_len, &value, &value_len));
     printf("prefix: %s prefix_len: %" PRIu32 " value_len: %" PRIu32 " value: %s\n", prefix, prefix_len, value_len, value);
  
     //critbit0_delete(tree, "colm", 4);
@@ -72,15 +72,15 @@ int test_critbit0()
     printf("\n");
 
     printf("veronica: %d ",
-           critbit0_find(tree, "veronica", 9, &value, &value_len));
+           critbit0_find(tree, (uint8_t *) "veronica", 9, &value, &value_len));
     printf("value_len: %u value: %s\n", value_len, value);
-    printf("bat:  %d\n", critbit0_find(tree, "bat", 4, &value, &value_len));
+    printf("bat:  %d\n", critbit0_find(tree, (uint8_t *) "bat", 4, &value, &value_len));
 
     //critbit0_delete(&tree, "veronica", 9);
 
     printf("veronica: %d\n",
-           critbit0_find(tree, "veronica", 9, &value, &value_len));
-    printf("bat:  %d\n", critbit0_find(tree, "bat", 4, &value, &value_len));
+           critbit0_find(tree, (uint8_t *) "veronica", 9, &value, &value_len));
+    printf("bat:  %d\n", critbit0_find(tree, (uint8_t *) "bat", 4, &value, &value_len));
 
     printf("\n");
     //critbit0_allprefixed(tree, "", 0, allprefixed_cb, NULL);
@@ -97,27 +97,27 @@ int test_critbit0()
 int test_cidr()
 {
     critbit0_tree *tree;
-    unsigned char ip1[4] = { 10, 0, 0, 0 };
-    unsigned char ip2[4] = { 10, 0, 3, 0 };
-    unsigned char ip3[4] = { 10, 0, 3, 128 };
-    unsigned char ip4[4] = { 129, 7, 6, 8 };
+    uint8_t ip1[4] = { 10, 0, 0, 0 };
+    uint8_t ip2[4] = { 10, 0, 3, 0 };
+    uint8_t ip3[4] = { 10, 0, 3, 128 };
+    uint8_t ip4[4] = { 129, 7, 6, 8 };
 
-    unsigned char ip5[4] = { 10, 0, 3, 1 };
-    unsigned char ip6[4] = { 10, 0, 3, 137 };
-    unsigned char ip7[4] = { 10, 8, 0, 0 };
-    unsigned char ip8[4] = { 11, 0, 0, 0 };
+    uint8_t ip5[4] = { 10, 0, 3, 1 };
+    uint8_t ip6[4] = { 10, 0, 3, 137 };
+    uint8_t ip7[4] = { 10, 8, 0, 0 };
+    uint8_t ip8[4] = { 11, 0, 0, 0 };
 
-    char ip1_str[33];
-    char ip2_str[33];
-    char ip3_str[33];
-    char ip4_str[33];
-    char ip5_str[33];
-    char ip6_str[33];
-    char ip7_str[33];
-    char ip8_str[33];
+    uint8_t ip1_str[33];
+    uint8_t ip2_str[33];
+    uint8_t ip3_str[33];
+    uint8_t ip4_str[33];
+    uint8_t ip5_str[33];
+    uint8_t ip6_str[33];
+    uint8_t ip7_str[33];
+    uint8_t ip8_str[33];
 
-    const char * prefix;
-    const char * value;
+    const uint8_t * prefix;
+    const uint8_t * value;
     uint32_t prefix_len;
     uint32_t value_len;
     
@@ -139,13 +139,13 @@ int test_cidr()
     unlink("cidr");
     tree = critbit0_create("cidr");
 
-    critbit0_insert(tree, ip1_str, 8,  "10.0.0.0/8", 11);
-    critbit0_insert(tree, ip2_str, 24, "10.0.3.0/24", 12);
-    critbit0_insert(tree, ip3_str, 25, "10.0.3.128/25", 14);
-    critbit0_insert(tree, ip4_str, 32, "129.7.6.8/32", 13);
+    critbit0_insert(tree, ip1_str, 8,  (uint8_t *) "10.0.0.0/8", 11);
+    critbit0_insert(tree, ip2_str, 24, (uint8_t *) "10.0.3.0/24", 12);
+    critbit0_insert(tree, ip3_str, 25, (uint8_t *) "10.0.3.128/25", 14);
+    critbit0_insert(tree, ip4_str, 32, (uint8_t *) "129.7.6.8/32", 13);
 
     printf("All CIDRs:\n");
-    critbit0_allprefixed(tree, "", 0, cidr_cb, NULL);
+    critbit0_allprefixed(tree, (uint8_t *) "", 0, cidr_cb, NULL);
 
     printf("Longest match:\n");
 

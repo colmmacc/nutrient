@@ -4,7 +4,7 @@
 
 #include "nutrient.h"
 
-int dump_key_value(const char *key, uint32_t key_len, const char *value,
+int dump_key_value(const uint8_t *key, uint32_t key_len, const uint8_t *value,
                    uint32_t value_len, void *arg)
 {
     printf("+%" PRIu32 ",%" PRIu32 ":", key_len, value_len);
@@ -32,7 +32,7 @@ int main(int argc, char * argv[])
         usage();
     }
 
-    critbit0_allprefixed(tree, "", 0, dump_key_value, NULL);     
+    critbit0_allprefixed(tree, (uint8_t *) "", 0, dump_key_value, NULL);     
     
     critbit0_close(tree);
 

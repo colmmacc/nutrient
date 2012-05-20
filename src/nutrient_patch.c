@@ -42,8 +42,8 @@ int main(int argc, char * argv[])
 
     char operation;
     char c;
-    char * key_data = NULL; 
-    char * value_data = NULL;
+    uint8_t * key_data = NULL; 
+    uint8_t * value_data = NULL;
     char seperator[2];
 
     for (;;) {
