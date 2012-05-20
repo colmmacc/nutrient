@@ -17,10 +17,10 @@ typedef struct
     uint64_t child[2];
     uint32_t byte;
     uint8_t otherbits;
-} critbit0_node;
+} nutrient_node;
 
-static void read_critbit0_node(critbit0_tree * tree, uint64_t offset,
-                               critbit0_node * node)
+static void read_nutrient_node(nutrient_tree * tree, uint64_t offset,
+                               nutrient_node * node)
 {
     const uint8_t *memory = ffa_get_memory(tree->ffa, offset);
 
@@ -30,7 +30,7 @@ static void read_critbit0_node(critbit0_tree * tree, uint64_t offset,
     node->otherbits = (uint8_t) memory[20];
 }
 
-static void print_node(int level, critbit0_tree * t, uint64_t offset)
+static void print_node(int level, nutrient_tree * t, uint64_t offset)
 {
     int i;
 
@@ -41,9 +41,9 @@ static void print_node(int level, critbit0_tree * t, uint64_t offset)
     printf("(%llu) ", offset);
 
     if (offset & 1) {
-        critbit0_node node;
+        nutrient_node node;
 
-        read_critbit0_node(t, offset - 1, &node);
+        read_nutrient_node(t, offset - 1, &node);
         
         printf("byte: %u bits: %u\n", node.byte, (unsigned char) node.otherbits); 
 
@@ -74,7 +74,7 @@ static void print_node(int level, critbit0_tree * t, uint64_t offset)
     }
 }
 
-void print_tree(critbit0_tree * t)
+void print_tree(nutrient_tree * t)
 {
     if (t->root_offset == 0) {
         printf("[ EMPTY TREE ]\n");
@@ -85,8 +85,8 @@ void print_tree(critbit0_tree * t)
 }
 
 
-static void update_critbit0_node(critbit0_tree * tree, uint64_t offset,
-                                 critbit0_node * node)
+static void update_nutrient_node(nutrient_tree * tree, uint64_t offset,
+                                 nutrient_node * node)
 {
     uint8_t *memory = ffa_get_memory(tree->ffa, offset);
 
@@ -97,7 +97,7 @@ static void update_critbit0_node(critbit0_tree * tree, uint64_t offset,
     memory[20] = (char) node->otherbits;
 }
 
-static uint64_t add_critbit0_node(critbit0_tree * tree, critbit0_node * node)
+static uint64_t add_nutrient_node(nutrient_tree * tree, nutrient_node * node)
 {
     /* Allocate 24 bytes for the node storage */
     uint64_t offset = ffa_alloc(tree->ffa, 24);
@@ -106,28 +106,28 @@ static uint64_t add_critbit0_node(critbit0_tree * tree, critbit0_node * node)
         return FFA_ERROR;
     }
 
-    update_critbit0_node(tree, offset, node);
+    update_nutrient_node(tree, offset, node);
 
     return offset;
 }
 
-static void update_root_offset(critbit0_tree * tree)
+static void update_root_offset(nutrient_tree * tree)
 {
     uint64_pack(tree->root_offset, ffa_get_memory(tree->ffa, 8));
 }
 
-critbit0_tree *critbit0_create(const char *filename)
+nutrient_tree *nutrient_create(const char *filename)
 {
     struct ffa *f;
     uint64_t r;
-    critbit0_tree *tree;
+    nutrient_tree *tree;
 
     f = ffa_create(filename);
     if (f == NULL) {
         return NULL;
     }
 
-    tree = malloc(sizeof(critbit0_tree));
+    tree = malloc(sizeof(nutrient_tree));
     if (tree == NULL) {
         return NULL;
     }
@@ -152,10 +152,10 @@ critbit0_tree *critbit0_create(const char *filename)
     return tree;
 }
 
-critbit0_tree *critbit0_open(const char *filename)
+nutrient_tree *nutrient_open(const char *filename)
 {
     struct ffa *f;
-    critbit0_tree *tree;
+    nutrient_tree *tree;
 
     f = ffa_open(filename);
     if (f == NULL) {
@@ -168,7 +168,7 @@ critbit0_tree *critbit0_open(const char *filename)
         return NULL;
     }
 
-    tree = malloc(sizeof(critbit0_tree));
+    tree = malloc(sizeof(nutrient_tree));
     if (tree == NULL) {
         return NULL;
     }
@@ -182,26 +182,26 @@ critbit0_tree *critbit0_open(const char *filename)
     return tree;
 }
 
-int critbit0_sync(critbit0_tree * t)
+int nutrient_sync(nutrient_tree * t)
 {
     return ffa_sync(t->ffa);
 }
 
-int critbit0_close(critbit0_tree * t)
+int nutrient_close(nutrient_tree * t)
 {
     return ffa_close(t->ffa);
 }
 
-static void *_critbit0_find_predecessor(critbit0_tree * t, const uint8_t *key, uint32_t key_len)
+static void *_nutrient_find_predecessor(nutrient_tree * t, const uint8_t *key, uint32_t key_len)
 {
     uint64_t predecessor = t->root_offset;
-    critbit0_node q = {{ 0 }};
+    nutrient_node q = {{ 0 }};
 
     if (!predecessor)
         return NULL;
 
     while (1 & predecessor) {
-        read_critbit0_node(t, predecessor - 1, &q);
+        read_nutrient_node(t, predecessor - 1, &q);
 
         uint8_t c = 0;
         if (q.byte < key_len)
@@ -214,9 +214,9 @@ static void *_critbit0_find_predecessor(critbit0_tree * t, const uint8_t *key, u
     return ffa_get_memory(t->ffa, predecessor);
 }
 
-static void *_critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key, uint32_t key_len)
+static void *_nutrient_find_longest_prefix(nutrient_tree * t, const uint8_t *key, uint32_t key_len)
 {
-    uint8_t * found     = _critbit0_find_predecessor(t, key, key_len);
+    uint8_t * found     = _nutrient_find_predecessor(t, key, key_len);
 
     if (found == NULL)
     {
@@ -229,7 +229,7 @@ static void *_critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key
     uint32_t found_key_len;
     uint64_t longest_prefix_node = t->root_offset;
     uint64_t longest_data_prefix = 0;
-    critbit0_node q;
+    nutrient_node q;
 
     /* See if the predeccessor is our longest prefix */
     uint32_unpack((uint8_t *) found, &found_key_len); 
@@ -255,7 +255,7 @@ static void *_critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key
         if (!(1 & longest_prefix_node))
             break;
 
-        read_critbit0_node(t, longest_prefix_node - 1, &q);
+        read_nutrient_node(t, longest_prefix_node - 1, &q);
        
         uint8_t c = 0;
         if (q.byte < key_len)
@@ -308,18 +308,18 @@ static void *_critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key
     }
 }
 
-static void *_critbit0_find(critbit0_tree * t, const uint8_t *key,
+static void *_nutrient_find(nutrient_tree * t, const uint8_t *key,
                             uint32_t key_len)
 {
     uint64_t p = t->root_offset;
     uint32_t found_key_len;
-    critbit0_node q = {{ 0 }};
+    nutrient_node q = {{ 0 }};
 
     if (!p)
         return NULL;
 
     while (1 & p) {
-        read_critbit0_node(t, p - 1, &q);
+        read_nutrient_node(t, p - 1, &q);
         uint8_t c = 0;
         if (q.byte < key_len)
             c = key[q.byte];
@@ -339,10 +339,10 @@ static void *_critbit0_find(critbit0_tree * t, const uint8_t *key,
     return NULL;
 }
 
-int critbit0_find(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_find(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                   const uint8_t **value, uint32_t * value_len)
 {
-    uint8_t *r = _critbit0_find(t, key, key_len);;
+    uint8_t *r = _nutrient_find(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -356,11 +356,11 @@ int critbit0_find(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
     return 0;
 }
 
-int critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_find_longest_prefix(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                                 const uint8_t **prefix, uint32_t * prefix_len,
                                 const uint8_t **value, uint32_t * value_len)
 {
-    uint8_t *r = _critbit0_find_longest_prefix(t, key, key_len);;
+    uint8_t *r = _nutrient_find_longest_prefix(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -380,11 +380,11 @@ int critbit0_find_longest_prefix(critbit0_tree * t, const uint8_t *key, uint32_t
     return 0;
 }
 
-int critbit0_find_predecessor(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_find_predecessor(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                                 const uint8_t **prefix, uint32_t * prefix_len,
                                 const uint8_t **value, uint32_t * value_len)
 {
-    uint8_t *r = _critbit0_find_predecessor(t, key, key_len);;
+    uint8_t *r = _nutrient_find_predecessor(t, key, key_len);;
 
     if (!r)
         return -1;
@@ -404,13 +404,13 @@ int critbit0_find_predecessor(critbit0_tree * t, const uint8_t *key, uint32_t ke
     return 0;
 }
 
-int critbit0_insert(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_insert(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                     const uint8_t *value, uint32_t value_len)
 {
     const uint8_t *const ubytes = (void *) key;
     uint64_t p = t->root_offset;
-    critbit0_node q;
-    critbit0_node newnode;
+    nutrient_node q;
+    nutrient_node newnode;
 
     uint64_t new_data_offset = ffa_alloc(t->ffa, 8 + key_len + value_len);
     if (new_data_offset == FFA_ERROR)
@@ -441,7 +441,7 @@ int critbit0_insert(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
 
     /* Keep decending into children, as long as the LSB is "1" */
     while (1 & p) {
-        read_critbit0_node(t, p - 1, &q);
+        read_nutrient_node(t, p - 1, &q);
         uint8_t c = 0;
         if (q.byte < key_len)
             c = ubytes[q.byte];
@@ -509,7 +509,7 @@ int critbit0_insert(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
         if (!(1 & offset_of_insertion_point))
             break;
 
-        read_critbit0_node(t, offset_of_insertion_point - 1, &q);
+        read_nutrient_node(t, offset_of_insertion_point - 1, &q);
 
         if (q.byte > newbyte)
             break;
@@ -528,7 +528,7 @@ int critbit0_insert(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
     newnode.child[newdirection] = offset_of_insertion_point;
 
     /* Add the new node */
-    uint64_t newnode_offset = add_critbit0_node(t, &newnode);
+    uint64_t newnode_offset = add_nutrient_node(t, &newnode);
 
     /* Update the memory that originally pointed at the insertion point, to point at the
      ** new node. This may even be the root node.
@@ -544,14 +544,14 @@ int critbit0_insert(critbit0_tree * t, const uint8_t *key, uint32_t key_len,
     return 2;
 }
 
-int critbit0_delete(critbit0_tree * t, const uint8_t *key, uint32_t key_len, const uint8_t * value, uint32_t value_len)
+int nutrient_delete(nutrient_tree * t, const uint8_t *key, uint32_t key_len, const uint8_t * value, uint32_t value_len)
 {
 #if 0
     const uint8_t *ubytes = (void *) key;
     uint64_t p = t->root_offset;
     uint64_t offset_of_deletion_point = t->root_offset;
     uint64_t offset_of_pointer_to_deletion_point = 8;
-    critbit0_node q = {{ 0 }};
+    nutrient_node q = {{ 0 }};
     int direction = 0;
     uint32_t found_key_len;
 
@@ -561,7 +561,7 @@ int critbit0_delete(critbit0_tree * t, const uint8_t *key, uint32_t key_len, con
     while (1 & offset_of_deletion_point) {
         whereq = wherep;
 
-        read_critbit0_node(t, offset_of_deletion_point - 1, &q);
+        read_nutrient_node(t, offset_of_deletion_point - 1, &q);
 
         uint8_t c = 0;
         if (q.byte < key_len)
@@ -594,13 +594,13 @@ int critbit0_delete(critbit0_tree * t, const uint8_t *key, uint32_t key_len, con
         update_root_offset(t);
     }
 
-    // TODO: deallocator(q, sizeof(critbit0_node));
+    // TODO: deallocator(q, sizeof(nutrient_node));
 #endif
 
     return 1;
 }
 
-void critbit0_clear(critbit0_tree * t)
+void nutrient_clear(nutrient_tree * t)
 {
     t->root_offset = 0;
     update_root_offset(t);
@@ -609,16 +609,16 @@ void critbit0_clear(critbit0_tree * t)
 }
 
 static int
-allprefixed_traverse(critbit0_tree * t, uint64_t top,
+allprefixed_traverse(nutrient_tree * t, uint64_t top,
                      int (*handle) (const uint8_t *, uint32_t, const uint8_t *,
                                     uint32_t, void *), void *arg)
 {
     uint32_t key_len;
     uint32_t value_len;
-    critbit0_node q;
+    nutrient_node q;
 
     if (1 & top) {
-        read_critbit0_node(t, top - 1, &q);
+        read_nutrient_node(t, top - 1, &q);
         for (int direction = 0; direction < 2; ++direction)
             switch (allprefixed_traverse(t, q.child[direction], handle, arg)) {
             case 1:
@@ -640,7 +640,7 @@ allprefixed_traverse(critbit0_tree * t, uint64_t top,
 }
 
 int
-critbit0_allprefixed(critbit0_tree * t, const uint8_t *prefix,
+nutrient_allprefixed(nutrient_tree * t, const uint8_t *prefix,
                      uint32_t prefix_len, int (*handle) (const uint8_t *,
                                                          uint32_t,
                                                          const uint8_t *,
@@ -650,13 +650,13 @@ critbit0_allprefixed(critbit0_tree * t, const uint8_t *prefix,
     const uint8_t *ubytes = (void *) prefix;
     uint64_t p = t->root_offset;
     uint64_t top = p;
-    critbit0_node q;
+    nutrient_node q;
 
     if (!p)
         return 1;
 
     while (1 & p) {
-        read_critbit0_node(t, p - 1, &q);
+        read_nutrient_node(t, p - 1, &q);
         uint8_t c = 0;
         if (q.byte < prefix_len)
             c = ubytes[q.byte];

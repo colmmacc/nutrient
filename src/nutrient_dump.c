@@ -27,14 +27,14 @@ int main(int argc, char * argv[])
     if (argc != 2)
         usage();
 
-    critbit0_tree * tree = critbit0_open(argv[1]);
+    nutrient_tree * tree = nutrient_open(argv[1]);
     if (tree == NULL) {
         usage();
     }
 
-    critbit0_allprefixed(tree, (uint8_t *) "", 0, dump_key_value, NULL);     
+    nutrient_allprefixed(tree, (uint8_t *) "", 0, dump_key_value, NULL);     
     
-    critbit0_close(tree);
+    nutrient_close(tree);
 
     return 0;
 }

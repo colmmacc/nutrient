@@ -26,7 +26,7 @@ int main(int argc, char * argv[])
     if (argc != 3)
         usage();
 
-    critbit0_tree * tree = critbit0_open(argv[2]);
+    nutrient_tree * tree = nutrient_open(argv[2]);
     if (tree == NULL)
     {
         usage();
@@ -97,7 +97,7 @@ int main(int argc, char * argv[])
         const uint8_t * value_data;
         uint32_t value_len;
     
-        int found = critbit0_find(tree, key_data, key_len, &value_data, &value_len);
+        int found = nutrient_find(tree, key_data, key_len, &value_data, &value_len);
         if (found != 0)
         {
             value_len = 0;
@@ -110,8 +110,8 @@ int main(int argc, char * argv[])
         printf("\n");
     }
 
-    critbit0_sync(tree);
-    critbit0_close(tree);
+    nutrient_sync(tree);
+    nutrient_close(tree);
 
     return 0;
 }

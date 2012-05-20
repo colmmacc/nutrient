@@ -25,7 +25,7 @@ int main(int argc, char * argv[])
     if (argc != 3)
         usage();
 
-    critbit0_tree * tree = critbit0_create(argv[2]);
+    nutrient_tree * tree = nutrient_create(argv[2]);
     if (tree == NULL)
     {
         usage();
@@ -129,7 +129,7 @@ int main(int argc, char * argv[])
 
         /* Insert or delete the record */
         switch (operation) {
-            case '+': critbit0_insert(tree, key_data, key_len, value_data, value_len);
+            case '+': nutrient_insert(tree, key_data, key_len, value_data, value_len);
                       break;
 
             case '-':
@@ -149,8 +149,8 @@ int main(int argc, char * argv[])
         }
     }
 
-    critbit0_sync(tree);
-    critbit0_close(tree);
+    nutrient_sync(tree);
+    nutrient_close(tree);
 
     return 0;
 }

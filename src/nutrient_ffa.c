@@ -26,11 +26,6 @@ uint64_t ffa_get_size(struct ffa *handle)
     return handle->size;
 }
 
-void *ffa_get_base(struct ffa *handle)
-{
-    return handle->base;
-}
-
 int ffa_truncate(struct ffa *handle, uint64_t size)
 {
     int r = ftruncate(handle->fd, size);

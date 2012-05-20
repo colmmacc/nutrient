@@ -39,10 +39,27 @@ uint64_t ffa_alloc(struct ffa *handle, size_t size);
 */
 uint64_t ffa_free(struct ffa *handle, uint64_t offset, size_t size);
 
+/*
+** Sync all in-memory changes to disk
+**
+** @param handle The struct ffa for the opened file
+**
+** @return 0 on success, -1 on error
+*/
 int ffa_sync(struct ffa *handle);
+
+/*
+** Close the ffa file
+**
+** @param handle The struct ffa for the opened file
+**
+** @return 0 on success, -1 on error
+*/
 int ffa_close(struct ffa *handle);
 
-void *ffa_get_base(struct ffa *handle);
+
 uint64_t ffa_get_size(struct ffa *handle);
+
 void *ffa_get_memory(struct ffa *handle, uint64_t offset);
+
 int ffa_truncate(struct ffa *handle, uint64_t size);
