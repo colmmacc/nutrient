@@ -28,6 +28,14 @@ for (my $queries = 0; $queries < 1000000; $queries++)
 }
 close(QUERY);
 
+open PREFIX, ">prefix" or die $!;
+for (my $queries = 0; $queries < 1000000; $queries++)
+{
+    my $word = $words[ rand($#words) ] ;
+    print PREFIX (length($word) + 1) . ":$word" . "x\n"; 
+}
+close(PREFIX);
+
 unlink("dict.db");
 
 # Create the dict db
