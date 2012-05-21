@@ -37,7 +37,7 @@ int cidr_cb(const uint8_t *key, uint32_t key_len, const uint8_t *value,
 
 int test_critbit0()
 {
-    nutrient_tree *tree;
+    struct nutrient_tree *tree;
     const uint8_t *value;
     const uint8_t *prefix;
     uint32_t value_len;
@@ -96,7 +96,7 @@ int test_critbit0()
 
 int test_cidr()
 {
-    nutrient_tree *tree;
+    struct nutrient_tree *tree;
     uint8_t ip1[4] = { 10, 0, 0, 0 };
     uint8_t ip2[4] = { 10, 0, 3, 0 };
     uint8_t ip3[4] = { 10, 0, 3, 128 };

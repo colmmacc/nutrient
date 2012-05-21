@@ -12,6 +12,12 @@
 #include "nutrient_util.h"
 #include "nutrient_ffa.h"
 
+struct nutrient_tree
+{
+    uint64_t root_offset;
+    struct ffa *ffa;
+};
+
 typedef struct
 {
     uint64_t child[2];
@@ -19,7 +25,7 @@ typedef struct
     uint8_t otherbits;
 } nutrient_node;
 
-static void read_nutrient_node(nutrient_tree * tree, uint64_t offset,
+static void read_nutrient_node(struct nutrient_tree * tree, uint64_t offset,
                                nutrient_node * node)
 {
     const uint8_t *memory = ffa_get_memory(tree->ffa, offset);
@@ -30,7 +36,7 @@ static void read_nutrient_node(nutrient_tree * tree, uint64_t offset,
     node->otherbits = (uint8_t) memory[20];
 }
 
-static void print_node(int level, nutrient_tree * t, uint64_t offset)
+static void print_node(int level, struct nutrient_tree * t, uint64_t offset)
 {
     int i;
 
@@ -74,7 +80,7 @@ static void print_node(int level, nutrient_tree * t, uint64_t offset)
     }
 }
 
-void print_tree(nutrient_tree * t)
+void print_tree(struct nutrient_tree * t)
 {
     if (t->root_offset == 0) {
         printf("[ EMPTY TREE ]\n");
@@ -85,7 +91,7 @@ void print_tree(nutrient_tree * t)
 }
 
 
-static void update_nutrient_node(nutrient_tree * tree, uint64_t offset,
+static void update_nutrient_node(struct nutrient_tree * tree, uint64_t offset,
                                  nutrient_node * node)
 {
     uint8_t *memory = ffa_get_memory(tree->ffa, offset);
@@ -97,7 +103,7 @@ static void update_nutrient_node(nutrient_tree * tree, uint64_t offset,
     memory[20] = (char) node->otherbits;
 }
 
-static uint64_t add_nutrient_node(nutrient_tree * tree, nutrient_node * node)
+static uint64_t add_nutrient_node(struct nutrient_tree * tree, nutrient_node * node)
 {
     /* Allocate 24 bytes for the node storage */
     uint64_t offset = ffa_alloc(tree->ffa, 24);
@@ -111,23 +117,23 @@ static uint64_t add_nutrient_node(nutrient_tree * tree, nutrient_node * node)
     return offset;
 }
 
-static void update_root_offset(nutrient_tree * tree)
+static void update_root_offset(struct nutrient_tree * tree)
 {
     uint64_pack(tree->root_offset, ffa_get_memory(tree->ffa, 8));
 }
 
-nutrient_tree *nutrient_create(const char *filename)
+struct nutrient_tree *nutrient_create(const char *filename)
 {
     struct ffa *f;
     uint64_t r;
-    nutrient_tree *tree;
+    struct nutrient_tree *tree;
 
     f = ffa_create(filename);
     if (f == NULL) {
         return NULL;
     }
 
-    tree = malloc(sizeof(nutrient_tree));
+    tree = malloc(sizeof(struct nutrient_tree));
     if (tree == NULL) {
         return NULL;
     }
@@ -152,10 +158,10 @@ nutrient_tree *nutrient_create(const char *filename)
     return tree;
 }
 
-nutrient_tree *nutrient_open(const char *filename)
+struct nutrient_tree *nutrient_open(const char *filename)
 {
     struct ffa *f;
-    nutrient_tree *tree;
+    struct nutrient_tree *tree;
 
     f = ffa_open(filename);
     if (f == NULL) {
@@ -168,7 +174,7 @@ nutrient_tree *nutrient_open(const char *filename)
         return NULL;
     }
 
-    tree = malloc(sizeof(nutrient_tree));
+    tree = malloc(sizeof(struct nutrient_tree));
     if (tree == NULL) {
         return NULL;
     }
@@ -182,17 +188,17 @@ nutrient_tree *nutrient_open(const char *filename)
     return tree;
 }
 
-int nutrient_sync(nutrient_tree * t)
+int nutrient_sync(struct nutrient_tree * t)
 {
     return ffa_sync(t->ffa);
 }
 
-int nutrient_close(nutrient_tree * t)
+int nutrient_close(struct nutrient_tree * t)
 {
     return ffa_close(t->ffa);
 }
 
-static void *_nutrient_find_predecessor(nutrient_tree * t, const uint8_t *key, uint32_t key_len)
+static void *_nutrient_find_predecessor(struct nutrient_tree * t, const uint8_t *key, uint32_t key_len)
 {
     uint64_t predecessor = t->root_offset;
     nutrient_node q = {{ 0 }};
@@ -214,7 +220,7 @@ static void *_nutrient_find_predecessor(nutrient_tree * t, const uint8_t *key, u
     return ffa_get_memory(t->ffa, predecessor);
 }
 
-static void *_nutrient_find_longest_prefix(nutrient_tree * t, const uint8_t *key, uint32_t key_len)
+static void *_nutrient_find_longest_prefix(struct nutrient_tree * t, const uint8_t *key, uint32_t key_len)
 {
     uint8_t * found     = _nutrient_find_predecessor(t, key, key_len);
 
@@ -308,7 +314,7 @@ static void *_nutrient_find_longest_prefix(nutrient_tree * t, const uint8_t *key
     }
 }
 
-static void *_nutrient_find(nutrient_tree * t, const uint8_t *key,
+static void *_nutrient_find(struct nutrient_tree * t, const uint8_t *key,
                             uint32_t key_len)
 {
     uint64_t p = t->root_offset;
@@ -339,7 +345,7 @@ static void *_nutrient_find(nutrient_tree * t, const uint8_t *key,
     return NULL;
 }
 
-int nutrient_find(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_find(struct nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                   const uint8_t **value, uint32_t * value_len)
 {
     uint8_t *r = _nutrient_find(t, key, key_len);;
@@ -356,7 +362,7 @@ int nutrient_find(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
     return 0;
 }
 
-int nutrient_find_longest_prefix(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_find_longest_prefix(struct nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                                 const uint8_t **prefix, uint32_t * prefix_len,
                                 const uint8_t **value, uint32_t * value_len)
 {
@@ -380,7 +386,7 @@ int nutrient_find_longest_prefix(nutrient_tree * t, const uint8_t *key, uint32_t
     return 0;
 }
 
-int nutrient_find_predecessor(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_find_predecessor(struct nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                                 const uint8_t **prefix, uint32_t * prefix_len,
                                 const uint8_t **value, uint32_t * value_len)
 {
@@ -404,7 +410,7 @@ int nutrient_find_predecessor(nutrient_tree * t, const uint8_t *key, uint32_t ke
     return 0;
 }
 
-int nutrient_insert(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
+int nutrient_insert(struct nutrient_tree * t, const uint8_t *key, uint32_t key_len,
                     const uint8_t *value, uint32_t value_len)
 {
     const uint8_t *const ubytes = (void *) key;
@@ -544,7 +550,7 @@ int nutrient_insert(nutrient_tree * t, const uint8_t *key, uint32_t key_len,
     return 2;
 }
 
-int nutrient_delete(nutrient_tree * t, const uint8_t *key, uint32_t key_len, const uint8_t * value, uint32_t value_len)
+int nutrient_delete(struct nutrient_tree * t, const uint8_t *key, uint32_t key_len, const uint8_t * value, uint32_t value_len)
 {
 #if 0
     const uint8_t *ubytes = (void *) key;
@@ -600,7 +606,7 @@ int nutrient_delete(nutrient_tree * t, const uint8_t *key, uint32_t key_len, con
     return 1;
 }
 
-void nutrient_clear(nutrient_tree * t)
+void nutrient_clear(struct nutrient_tree * t)
 {
     t->root_offset = 0;
     update_root_offset(t);
@@ -609,7 +615,7 @@ void nutrient_clear(nutrient_tree * t)
 }
 
 static int
-allprefixed_traverse(nutrient_tree * t, uint64_t top,
+allprefixed_traverse(struct nutrient_tree * t, uint64_t top,
                      int (*handle) (const uint8_t *, uint32_t, const uint8_t *,
                                     uint32_t, void *), void *arg)
 {
@@ -640,7 +646,7 @@ allprefixed_traverse(nutrient_tree * t, uint64_t top,
 }
 
 int
-nutrient_allprefixed(nutrient_tree * t, const uint8_t *prefix,
+nutrient_allprefixed(struct nutrient_tree * t, const uint8_t *prefix,
                      uint32_t prefix_len, int (*handle) (const uint8_t *,
                                                          uint32_t,
                                                          const uint8_t *,

@@ -1,6 +1,7 @@
-CFLAGS=-Wall -pedantic -std=c99 -Werror -g
+CFLAGS=-Wall -pedantic -std=c99 -Werror
 
-all: runtest nutrient.o nutrient_ffa.o nutrient_util.o nutrient_patch nutrient_dump nutrient_query nutrient_prefix
+all: runtest nutrient.o nutrient_ffa.o nutrient_util.o nutrient_patch \
+     nutrient_dump nutrient_query nutrient_prefix nutrient_cidrs
 
 nutrient_ffa.o: nutrient_ffa.c nutrient_ffa.h
 
@@ -17,6 +18,8 @@ nutrient_dump: nutrient_dump.c nutrient.o nutrient_ffa.o nutrient_util.o
 nutrient_query: nutrient_query.c nutrient.o nutrient_ffa.o nutrient_util.o
 
 nutrient_prefix: nutrient_prefix.c nutrient.o nutrient_ffa.o nutrient_util.o
+
+nutrient_cidrs: nutrient_cidrs.c nutrient.o nutrient_ffa.o nutrient_util.o
 
 runtest: test
 	./test 

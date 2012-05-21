@@ -27,7 +27,7 @@ int main(int argc, char * argv[])
     if (argc != 2)
         usage();
 
-    nutrient_tree * tree = nutrient_open(argv[1]);
+    struct nutrient_tree * tree = nutrient_open(argv[1]);
     if (tree == NULL) {
         usage();
     }
