@@ -126,10 +126,10 @@ int test_cidr()
     ipv4_cidr_pack(ip2, 24, ip2_str);
     ipv4_cidr_pack(ip3, 25, ip3_str);
     ipv4_cidr_pack(ip4, 32, ip4_str);
-    ipv4_cidr_pack(ip5, 32, ip5_str);
-    ipv4_cidr_pack(ip6, 32, ip6_str);
-    ipv4_cidr_pack(ip7, 32, ip7_str);
-    ipv4_cidr_pack(ip8, 32, ip8_str);
+    ipv4_pack(ip5, ip5_str);
+    ipv4_pack(ip6, ip6_str);
+    ipv4_pack(ip7, ip7_str);
+    ipv4_pack(ip8, ip8_str);
 
     ipv4_cidr_unpack(ip1_str, 8, ip1);
     ipv4_cidr_unpack(ip2_str, 24, ip2);

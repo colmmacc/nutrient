@@ -1,4 +1,4 @@
-CFLAGS=-Wall -pedantic -std=c99 -Werror
+CFLAGS=-Wall -pedantic -std=c99 -Werror -DDEBUG
 
 all: runtest nutrient.o nutrient_ffa.o nutrient_util.o nutrient_patch \
      nutrient_dump nutrient_query nutrient_prefix nutrient_cidrs
